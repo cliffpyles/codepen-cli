@@ -58,6 +58,35 @@ describe('pens', () => {
     });
   });
 
+  it('creates multipart when a file is binary, keeping text files in the pen part', async () => {
+    const fetch = fakeFetch(jsonResponse({ status: 201, body: { ...pen(), build: build() } }));
+    await client(fetch).createPen(
+      {
+        title: 'T',
+        description: undefined,
+        files: [
+          { path: 'index.html', content: '<p>' },
+          { path: 'img/logo.png', data: new Uint8Array([0, 1]) },
+        ],
+      },
+      { wait: 0 },
+    );
+    const { url, init, headers } = callOf(fetch);
+    expect(url).toBe(`${V2}/pens?wait=0`);
+    expect(init?.method).toBe('POST');
+    expect(headers['Content-Type']).toBeUndefined();
+    const form = init?.body as FormData;
+    expect(form).toBeInstanceOf(FormData);
+    expect(JSON.parse(form.get('pen') as string)).toEqual({
+      title: 'T',
+      files: [{ path: 'index.html', content: '<p>' }],
+    });
+    const part = form.get('/img/logo.png') as File;
+    expect(part.name).toBe('logo.png');
+    expect(new Uint8Array(await part.arrayBuffer())).toEqual(new Uint8Array([0, 1]));
+    expect(form.has('wait')).toBe(false);
+  });
+
   it('updates, deletes, forks and changes settings', async () => {
     const fetch = fakeFetch(
       jsonResponse({ body: pen() }),
@@ -153,6 +182,35 @@ describe('pen files', () => {
       url: `${V2}/pens/p1/files/old.js?wait=0&expected_version_id=v0`,
       init: { method: 'DELETE' },
     });
+  });
+
+  it('applies bulk changes with binary uploads as multipart', async () => {
+    const fetch = fakeFetch(
+      jsonResponse({ body: writeResult }),
+      jsonResponse({ body: writeResult }),
+    );
+    const c = client(fetch);
+    await c.putFiles(
+      'p1',
+      [{ path: 'index.html', content: '<img>' }],
+      { wait: 5, expected_version_id: 'v0' },
+      [{ path: './img/logo.png', data: new Uint8Array([0, 1]) }],
+    );
+    await c.putFiles('p1', [], {}, [{ path: 'a.bin', data: new Uint8Array([0]) }]);
+    const first = callOf(fetch, 0);
+    expect(first.url).toBe(`${V2}/pens/p1/files?wait=5`);
+    expect(first.init?.method).toBe('PUT');
+    expect(first.headers['Content-Type']).toBeUndefined();
+    const form = first.init?.body as FormData;
+    expect(JSON.parse(form.get('changes') as string)).toEqual({
+      files: [{ path: 'index.html', content: '<img>' }],
+    });
+    expect(form.get('expected_version_id')).toBe('v0');
+    expect((form.get('/img/logo.png') as File).name).toBe('logo.png');
+    const second = callOf(fetch, 1).init?.body as FormData;
+    expect(second.has('changes')).toBe(false);
+    expect(second.has('expected_version_id')).toBe(false);
+    expect(callOf(fetch, 1).url).toBe(`${V2}/pens/p1/files`);
   });
 });
 

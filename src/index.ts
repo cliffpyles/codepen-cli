@@ -1,5 +1,13 @@
-export { CodePenClient, parseLinkHeader } from './lib/client.js';
-export type { ClientOptions, PenListOptions, CollectionListOptions } from './lib/client.js';
+export { CodePenClient, isBinaryInput, parseLinkHeader } from './lib/client.js';
+export type {
+  BinaryFileInput,
+  ClientOptions,
+  CollectionListOptions,
+  FileInput,
+  PenListOptions,
+  TextFileInput,
+  WriteOptions,
+} from './lib/client.js';
 export {
   resolveConfig,
   isValidApiKey,

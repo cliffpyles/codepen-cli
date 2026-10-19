@@ -59,6 +59,21 @@ export interface WriteOptions {
   expected_version_id?: string | undefined;
 }
 
+/** A file to include in a new Pen: text as `content`, binary as `data`. */
+export interface TextFileInput {
+  path: string;
+  content: string;
+}
+export interface BinaryFileInput {
+  path: string;
+  data: Uint8Array;
+}
+export type FileInput = TextFileInput | BinaryFileInput;
+
+export function isBinaryInput(file: FileInput): file is BinaryFileInput {
+  return 'data' in file;
+}
+
 export interface CollectionInput {
   title?: string | undefined;
   description?: string | undefined;
@@ -114,6 +129,14 @@ function encPath(path: string): string {
  */
 function toBlob(data: Uint8Array): Blob {
   return new Blob([new Uint8Array(data)]);
+}
+
+/** Add one multipart part per binary file, named by the file's Pen path. */
+function appendUploads(form: FormData, uploads: BinaryFileInput[]): void {
+  for (const upload of uploads) {
+    const path = normalizePenPath(upload.path);
+    form.set(path, toBlob(upload.data), path.split('/').pop() ?? 'file');
+  }
 }
 
 function dropUndefined<T extends object>(value: T): Partial<T> {
@@ -214,11 +237,24 @@ export class CodePenClient {
     return this.get<Pen>(`/pens/${enc(id)}`);
   }
 
-  createPen(
-    input: PenInput & { files?: { path: string; content: string }[] | undefined },
+  /**
+   * Create a Pen. Text files travel in the JSON body; when any file is binary the
+   * request goes multipart, with the JSON in a `pen` part and one part per binary file.
+   */
+  async createPen(
+    input: PenInput & { files?: FileInput[] | undefined },
     options: WriteOptions = {},
-  ) {
-    return this.send<Pen & { build?: Build }>('POST', '/pens', { ...input, wait: options.wait });
+  ): Promise<Pen & { build?: Build }> {
+    const uploads = (input.files ?? []).filter(isBinaryInput);
+    if (uploads.length === 0) {
+      return this.send<Pen & { build?: Build }>('POST', '/pens', { ...input, wait: options.wait });
+    }
+    const text = (input.files ?? []).filter((f) => !isBinaryInput(f));
+    const form = new FormData();
+    form.set('pen', JSON.stringify(dropUndefined({ ...input, files: text })));
+    appendUploads(form, uploads);
+    const query = options.wait === undefined ? {} : { wait: options.wait };
+    return (await this.request<Pen & { build?: Build }>('POST', '/pens', { form, query })).data;
   }
 
   updatePen(id: string, input: PenInput) {
@@ -279,9 +315,26 @@ export class CodePenClient {
     return result.data;
   }
 
-  /** Apply several changes as one new version. */
-  putFiles(penId: string, files: FileChange[], options: WriteOptions = {}) {
-    return this.send<WriteResult>('PUT', `/pens/${enc(penId)}/files`, { files, ...options });
+  /**
+   * Apply several changes as one new version. Binary `uploads` turn the request
+   * multipart; each becomes one more change, applied after those in `files`.
+   */
+  async putFiles(
+    penId: string,
+    files: FileChange[],
+    options: WriteOptions = {},
+    uploads: BinaryFileInput[] = [],
+  ): Promise<WriteResult> {
+    const path = `/pens/${enc(penId)}/files`;
+    if (uploads.length === 0) {
+      return this.send<WriteResult>('PUT', path, { files, ...options });
+    }
+    const form = new FormData();
+    if (files.length) form.set('changes', JSON.stringify({ files }));
+    if (options.expected_version_id) form.set('expected_version_id', options.expected_version_id);
+    appendUploads(form, uploads);
+    const query = options.wait === undefined ? {} : { wait: options.wait };
+    return (await this.request<WriteResult>('PUT', path, { form, query })).data;
   }
 
   deleteFile(penId: string, path: string, options: WriteOptions = {}) {

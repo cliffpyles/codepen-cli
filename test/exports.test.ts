@@ -13,6 +13,7 @@ describe('public exports', () => {
         'createProgram',
         'deleteStore',
         'exitCodeFor',
+        'isBinaryInput',
         'isValidApiKey',
         'keyKind',
         'maskApiKey',
