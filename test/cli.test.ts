@@ -1,8 +1,23 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { run } from '../src/program.js';
 import { callOf, fakeFetch, jsonResponse, pen, TEST_KEY, TEST_URL } from './helpers.js';
 
-function io(fetch?: typeof globalThis.fetch) {
+let dir: string;
+let configFile: string;
+
+beforeEach(() => {
+  dir = mkdtempSync(join(tmpdir(), 'codepen-cli-'));
+  configFile = join(dir, 'config.json');
+});
+afterEach(() => {
+  rmSync(dir, { recursive: true, force: true });
+});
+
+/** Isolated IO: no real env, no real config file, no network. */
+function io(fetch?: typeof globalThis.fetch, env: NodeJS.ProcessEnv = {}) {
   const out: string[] = [];
   const err: string[] = [];
   return {
@@ -11,6 +26,7 @@ function io(fetch?: typeof globalThis.fetch) {
     io: {
       out: (s: string) => void out.push(s),
       err: (s: string) => void err.push(s),
+      env: { CODEPEN_CONFIG_PATH: configFile, ...env },
       ...(fetch ? { fetch } : {}),
     },
   };
@@ -19,10 +35,6 @@ function io(fetch?: typeof globalThis.fetch) {
 const base = ['--api-key', TEST_KEY, '--api-url', TEST_URL];
 
 describe('codepen CLI', () => {
-  beforeEach(() => {
-    vi.stubEnv('CODEPEN_API_KEY', '');
-  });
-
   it('prints help and exits 0', async () => {
     const { out, io: handles } = io();
     expect(await run(['--help'], handles)).toBe(0);
@@ -46,6 +58,14 @@ describe('codepen CLI', () => {
     const { err, io: handles } = io(fakeFetch());
     expect(await run(['pens', 'list'], handles)).toBe(78);
     expect(err.join('')).toContain('CODEPEN_API_KEY');
+    expect(err.join('')).toContain('auth login');
+  });
+
+  it('reads the key from the environment when no flag is given', async () => {
+    const fetch = fakeFetch(jsonResponse({ body: [] }));
+    const { io: handles } = io(fetch, { CODEPEN_API_KEY: TEST_KEY, CODEPEN_API_URL: TEST_URL });
+    expect(await run(['pens', 'list'], handles)).toBe(0);
+    expect(callOf(fetch).headers.Authorization).toBe(`Bearer ${TEST_KEY}`);
   });
 
   it('lists pens as a table and hints at the next page', async () => {

@@ -9,12 +9,18 @@ describe('public exports', () => {
         'CodePenClient',
         'ConfigError',
         'DEFAULT_BASE_URL',
+        'configPath',
         'createProgram',
+        'deleteStore',
         'exitCodeFor',
         'isValidApiKey',
+        'keyKind',
+        'maskApiKey',
         'parseLinkHeader',
+        'readStore',
         'resolveConfig',
         'run',
+        'writeStore',
       ].sort(),
     );
   });
