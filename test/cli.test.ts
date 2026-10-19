@@ -85,7 +85,7 @@ describe('codepen CLI', () => {
     expect(out.join('\n')).toContain('ID      TITLE      ACCESS  UPDATED');
     expect(out.join('\n')).toContain('abc123  Hello Pen  Public  2026-10-01T00:00:00Z');
     expect(err.join('')).toContain('--page 2');
-    expect(callOf(fetch).url).toBe(`${TEST_URL}/v2/pens?tags=css&tags=svg&page=1&per_page=1`);
+    expect(callOf(fetch).url).toBe(`${TEST_URL}/v2/pens?tags=css%2Csvg&page=1&per_page=1`);
   });
 
   it('lists pens as JSON with --json and no pagination hint', async () => {

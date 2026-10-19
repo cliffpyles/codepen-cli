@@ -26,14 +26,14 @@ describe('parseLinkHeader', () => {
 });
 
 describe('CodePenClient', () => {
-  it('builds URLs under /v2, dropping undefined values and repeating arrays', () => {
+  it('builds URLs under /v2, dropping undefined values and comma-joining arrays', () => {
     const url = client(fakeFetch()).buildUrl('pens', {
       page: 2,
       tags: ['a', 'b'],
       access: undefined,
       x: true,
     });
-    expect(url).toBe(`${TEST_URL}/v2/pens?page=2&tags=a&tags=b&x=true`);
+    expect(url).toBe(`${TEST_URL}/v2/pens?page=2&tags=a%2Cb&x=true`);
   });
 
   it('sends the bearer key and parses JSON', async () => {
