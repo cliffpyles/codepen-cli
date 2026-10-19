@@ -38,8 +38,8 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
           cache: npm
-      # Trusted publishing (OIDC) needs npm 11.5.1 or newer.
-      - run: npm install -g npm@latest
+      # Trusted publishing (OIDC) needs npm 11.5.1 or newer; Node 24 bundles
+      # npm 11.19+, so the version setup-node provides is enough.
       - run: npm ci
       # prepublishOnly runs clean, check and build before anything is uploaded.
       - run: npm publish --provenance --access public
