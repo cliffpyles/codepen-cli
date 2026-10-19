@@ -4,6 +4,7 @@
 [![CI](https://github.com/cliffpyles/codepen-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/cliffpyles/codepen-cli/actions/workflows/ci.yml)
 [![Node.js](https://img.shields.io/node/v/codepen-cli)](https://nodejs.org)
 [![License: MIT](https://img.shields.io/npm/l/codepen-cli)](LICENSE)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/cliffpyles/codepen-cli/badge)](https://scorecard.dev/viewer/?uri=github.com/cliffpyles/codepen-cli)
 
 A command-line interface for the [CodePen API v2](https://blog.codepen.io/docs/api/api-v2/). Manage your Pens, their files, Collections, and Assets from the terminal, and script against CodePen with `--json` output.
 
