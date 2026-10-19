@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.1.0](https://github.com/cliffpyles/codepen-cli/compare/v2.0.0...v2.1.0) (2026-10-19)
+
+
+### Features
+
+* **cli:** add --sort and --direction to collections, versions and assets lists ([6c53dcd](https://github.com/cliffpyles/codepen-cli/commit/6c53dcd8ab857c2761447472f7498c41f2ca0183))
+* **client:** send binary files multipart on pen create and bulk file writes ([9454461](https://github.com/cliffpyles/codepen-cli/commit/9454461a85334cb265f68856ae44f7ea41c182f8))
+* **pens:** upload binary files with pens create --file and pens files apply --file ([6005eef](https://github.com/cliffpyles/codepen-cli/commit/6005eef74a9cd0618ee373425395d72d78a238d6))
+
 ## [2.0.0](https://github.com/cliffpyles/codepen-cli/compare/v1.1.0...v2.0.0) (2026-10-19)
 
 
