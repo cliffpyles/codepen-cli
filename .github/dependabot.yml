@@ -7,6 +7,10 @@ updates:
     groups:
       dev-dependencies:
         dependency-type: development
+    ignore:
+      # typescript-eslint 8.x pins typescript <6.1; lift once it supports TS 7.
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
     commit-message:
       prefix: build
       prefix-development: build
