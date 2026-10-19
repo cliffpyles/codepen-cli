@@ -114,13 +114,14 @@ function dropUndefined<T extends object>(value: T): Partial<T> {
 export class CodePenClient {
   private readonly apiKey: string;
   private readonly baseUrl: string;
-  private readonly fetchImpl: typeof globalThis.fetch;
+  /** The fetch in use, exposed for downloads of file URLs outside the API. */
+  readonly fetch: typeof globalThis.fetch;
   private readonly sleep: (ms: number) => Promise<void>;
 
   constructor(options: ClientOptions) {
     this.apiKey = options.apiKey;
     this.baseUrl = options.baseUrl.replace(/\/+$/, '');
-    this.fetchImpl = options.fetch ?? globalThis.fetch;
+    this.fetch = options.fetch ?? globalThis.fetch;
     this.sleep = options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
   }
 
@@ -153,7 +154,7 @@ export class CodePenClient {
       headers['Content-Type'] = 'application/json';
       body = JSON.stringify(init.body);
     }
-    const response = await this.fetchImpl(this.buildUrl(path, init.query), {
+    const response = await this.fetch(this.buildUrl(path, init.query), {
       method,
       headers,
       ...(body === undefined ? {} : { body }),
