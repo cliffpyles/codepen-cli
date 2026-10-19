@@ -10,7 +10,7 @@ A command-line interface for the [CodePen API v2](https://blog.codepen.io/docs/a
 npm install -g codepen-cli
 ```
 
-Requires Node.js 20 or newer. Run one-off with `npx codepen-cli --help`.
+Requires Node.js 22.12 or newer. Run one-off with `npx codepen-cli --help`.
 
 ## Authentication
 
