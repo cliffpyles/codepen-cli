@@ -32,7 +32,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "dev": "tsx src/cli.ts",
+    "dev": "node --env-file-if-exists=.env --import tsx src/cli.ts",
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist coverage",
     "typecheck": "tsc --noEmit",
