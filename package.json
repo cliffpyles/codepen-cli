@@ -1,6 +1,6 @@
 {
   "name": "codepen-cli",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Command-line interface for the CodePen API v2: manage Pens, files, Collections, and Assets from your terminal.",
   "keywords": [
     "cli",
