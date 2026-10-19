@@ -23,8 +23,8 @@
     "node": ">=20.0.0"
   },
   "bin": {
-    "codepen": "./dist/cli.js",
-    "codepen-cli": "./dist/cli.js"
+    "codepen": "dist/cli.js",
+    "codepen-cli": "dist/cli.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
