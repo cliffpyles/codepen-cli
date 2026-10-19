@@ -291,13 +291,72 @@ describe('pens files apply', () => {
     expect(h.out[0]).toBe('Applied 2 change(s). Version v2.');
   });
 
-  it('rejects an empty change list', async () => {
+  it('uploads --file entries, text as changes and binaries as multipart parts', async () => {
+    const changes = join(dir, 'changes.json');
+    writeFileSync(changes, JSON.stringify([{ path: 'old.css', delete: true }]));
+    writeFileSync(join(dir, 'index.html'), '<img>');
+    writeFileSync(join(dir, 'logo.png'), Buffer.from([0, 1, 2]));
+    const fetch = fakeFetch(jsonResponse({ body: writeResult() }));
+    const h = cliHarness(configFile, { fetch });
+    expect(
+      await run(
+        [
+          'pens',
+          'files',
+          'apply',
+          'p1',
+          changes,
+          '--file',
+          join(dir, 'index.html'),
+          '--file',
+          `${join(dir, 'logo.png')}=img/logo.png`,
+          '--wait',
+          '0',
+          '--expected-version',
+          'v1',
+        ],
+        h.io,
+      ),
+    ).toBe(0);
+    const { url, init, headers } = callOf(fetch);
+    expect(url).toBe(`${V2}/pens/p1/files?wait=0`);
+    expect(init?.method).toBe('PUT');
+    expect(headers['Content-Type']).toBeUndefined();
+    const form = init?.body as FormData;
+    expect(JSON.parse(form.get('changes') as string)).toEqual({
+      files: [
+        { path: 'old.css', delete: true },
+        { path: 'index.html', content: '<img>' },
+      ],
+    });
+    expect(form.get('expected_version_id')).toBe('v1');
+    expect((form.get('/img/logo.png') as File).name).toBe('logo.png');
+    expect(h.out[0]).toBe('Applied 3 change(s). Version v2.');
+  });
+
+  it('applies --file alone as JSON when every file is text', async () => {
+    writeFileSync(join(dir, 'a.js'), 'x');
+    const fetch = fakeFetch(jsonResponse({ body: writeResult() }));
+    const h = cliHarness(configFile, { fetch });
+    expect(await run(['pens', 'files', 'apply', 'p1', '--file', join(dir, 'a.js')], h.io)).toBe(0);
+    expect(body(fetch)).toEqual({ files: [{ path: 'a.js', content: 'x' }] });
+  });
+
+  it('rejects an empty change list, no input at all, and a bad --file spec', async () => {
     const h = cliHarness(configFile, {
       fetch: fakeFetch(),
       readStdin: () => Promise.resolve('[]'),
     });
     expect(await run(['pens', 'files', 'apply', 'p1', '-'], h.io)).toBe(78);
     expect(h.stderr()).toContain('No changes');
+
+    const none = cliHarness(configFile, { fetch: fakeFetch() });
+    expect(await run(['pens', 'files', 'apply', 'p1'], none.io)).toBe(78);
+    expect(none.stderr()).toContain('at least one --file');
+
+    const bad = cliHarness(configFile, { fetch: fakeFetch() });
+    expect(await run(['pens', 'files', 'apply', 'p1', '--file', '=x'], bad.io)).toBe(78);
+    expect(bad.stderr()).toContain('Invalid --file');
   });
 });
 

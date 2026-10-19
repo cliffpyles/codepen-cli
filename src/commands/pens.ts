@@ -1,9 +1,7 @@
-import { readFile } from 'node:fs/promises';
-import { basename } from 'node:path';
 import type { Command } from 'commander';
 import type { CommandContext } from './context.js';
 import { registerCollaborators } from './collaborators.js';
-import { registerFiles } from './files.js';
+import { readLocalFiles, registerFiles } from './files.js';
 import { registerVersions } from './versions.js';
 import {
   ACCESS_VALUES,
@@ -59,30 +57,6 @@ function addPenOptions(cmd: Command): Command {
     )
     .option('--password <password>', 'Password for Protected access (8+ characters)')
     .option('--template <bool>', 'Mark as a template (true/false)', parseBoolean('--template'));
-}
-
-/** `--file local[=remote]` entries become {path, content}. */
-export async function readLocalFiles(
-  specs: string[],
-): Promise<{ path: string; content: string }[]> {
-  return Promise.all(
-    specs.map(async (spec) => {
-      const eq = spec.indexOf('=');
-      const local = eq === -1 ? spec : spec.slice(0, eq);
-      const remote = eq === -1 ? basename(local) : spec.slice(eq + 1);
-      if (!local || !remote)
-        throw new ConfigError(`Invalid --file "${spec}". Use local/path[=pen/path].`);
-      let content: string;
-      try {
-        content = await readFile(local, 'utf8');
-      } catch (error) {
-        throw new ConfigError(
-          `Could not read ${local}: ${error instanceof Error ? error.message : String(error)}`,
-        );
-      }
-      return { path: remote, content };
-    }),
-  );
 }
 
 function printPen(ctx: CommandContext, pen: Pen, build?: unknown): void {
@@ -163,7 +137,7 @@ export function registerPens(program: Command, ctx: CommandContext): void {
         .description('Create a 2.0 Pen and build it')
         .option(
           '--file <spec...>',
-          'Local file to include, as local/path or local/path=pen/path (repeatable)',
+          'Local file to include, as local/path or local/path=pen/path (repeatable); binaries are detected',
         ),
     ),
   )
@@ -172,6 +146,7 @@ export function registerPens(program: Command, ctx: CommandContext): void {
       `
 Examples:
   $ codepen pens create --title "Hello" --file index.html --file src/main.css=style.css
+  $ codepen pens create --title "Logo" --file index.html --file logo.png=img/logo.png
   $ codepen pens create --title "Private" --access Private --tag demo,api`,
     )
     .action(async (opts: PenFlags & WriteFlags & { file?: string[] }) => {

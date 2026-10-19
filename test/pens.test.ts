@@ -165,6 +165,44 @@ describe('pens create', () => {
     expect(h.stderr()).toContain('Build v1: Success');
   });
 
+  it('sends the request multipart when a --file is binary', async () => {
+    writeFileSync(join(dir, 'index.html'), '<img src="img/logo.png">');
+    writeFileSync(join(dir, 'logo.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47, 0, 1]));
+    const fetch = fakeFetch(
+      jsonResponse({ status: 201, body: { ...pen(), build: build({ status: 'Success' }) } }),
+    );
+    const h = cliHarness(configFile, { fetch });
+    const code = await run(
+      [
+        'pens',
+        'create',
+        '--title',
+        'Logo',
+        '--wait',
+        '10',
+        '--file',
+        join(dir, 'index.html'),
+        '--file',
+        `${join(dir, 'logo.png')}=img/logo.png`,
+      ],
+      h.io,
+    );
+    expect(code).toBe(0);
+    const { url, init, headers } = callOf(fetch, 0);
+    expect(url).toBe(`${V2}/pens?wait=10`);
+    expect(headers['Content-Type']).toBeUndefined();
+    const form = init?.body as FormData;
+    expect(form).toBeInstanceOf(FormData);
+    expect(JSON.parse(form.get('pen') as string)).toEqual({
+      title: 'Logo',
+      files: [{ path: 'index.html', content: '<img src="img/logo.png">' }],
+    });
+    const part = form.get('/img/logo.png') as File;
+    expect(part.name).toBe('logo.png');
+    expect(part.size).toBe(6);
+    expect(h.stdout()).toMatch(/^title\s+Hello Pen$/m);
+  });
+
   it('does not poll with --no-follow and emits build in JSON', async () => {
     const fetch = fakeFetch(
       jsonResponse({ status: 201, body: { ...pen(), build: build({ status: 'Queued' }) } }),

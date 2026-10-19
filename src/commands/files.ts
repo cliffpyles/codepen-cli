@@ -1,8 +1,9 @@
 import { readFile, writeFile } from 'node:fs/promises';
+import { basename } from 'node:path';
 import type { Command } from 'commander';
 import type { CommandContext } from './context.js';
 import { addWriteOptions, finishBuild, toWriteOptions, type WriteFlags } from './shared.js';
-import { normalizePenPath } from '../lib/client.js';
+import { isBinaryInput, normalizePenPath, type FileInput } from '../lib/client.js';
 import { ConfigError } from '../lib/errors.js';
 import { formatJson, formatTable } from '../lib/output.js';
 import type { FileChange, PenFile, WriteResult } from '../types.js';
@@ -31,6 +32,26 @@ export async function readLocal(path: string): Promise<Uint8Array> {
   } catch (error) {
     throw wrap(error, `Could not read ${path}`);
   }
+}
+
+/**
+ * Read `local[=pen/path]` specs into file inputs. Text is decoded; anything that
+ * looks binary is kept as bytes for a multipart upload.
+ */
+export async function readLocalFiles(specs: string[]): Promise<FileInput[]> {
+  return Promise.all(
+    specs.map(async (spec) => {
+      const eq = spec.indexOf('=');
+      const local = eq === -1 ? spec : spec.slice(0, eq);
+      const remote = eq === -1 ? basename(local) : spec.slice(eq + 1);
+      if (!local || !remote)
+        throw new ConfigError(`Invalid --file "${spec}". Use local/path[=pen/path].`);
+      const bytes = await readLocal(local);
+      return looksBinary(bytes)
+        ? { path: remote, data: bytes }
+        : { path: remote, content: new TextDecoder().decode(bytes) };
+    }),
+  );
 }
 
 /** Parse a bulk change list from JSON; accepts a bare array or {files: [...]}. */
@@ -205,8 +226,12 @@ Examples:
 
   addWriteOptions(
     files
-      .command('apply <pen> <changes>')
-      .description('Apply several changes as one version from a JSON file ("-" for stdin)'),
+      .command('apply <pen> [changes]')
+      .description('Apply several changes as one version from a JSON file ("-" for stdin)')
+      .option(
+        '--file <spec...>',
+        'Local file to write, as local/path or local/path=pen/path (repeatable)',
+      ),
   )
     .addHelpText(
       'after',
@@ -215,18 +240,41 @@ The JSON is an array (or {"files": [...]}) of changes, applied in order:
   { "path": "index.html", "content": "<h1>Hi</h1>" }     write by path (creates if missing)
   { "id": "<file id>", "content": "..." }                 write by id
   { "id": "<file id>", "path": "src/app.js" }             move/rename, keeping the id
-  { "path": "style.css", "delete": true }                 delete (a directory removes everything under it)`,
+  { "path": "style.css", "delete": true }                 delete (a directory removes everything under it)
+
+--file entries are applied after the JSON changes. Binary files are detected and
+uploaded as multipart; text files are sent as content. The JSON file is optional
+when --file is given.
+
+Examples:
+  $ codepen pens files apply abc123 changes.json
+  $ codepen pens files apply abc123 --file logo.png=img/logo.png --file index.html`,
     )
-    .action(async (penId: string, changesPath: string, opts: WriteFlags) => {
-      const json =
-        changesPath === '-'
-          ? await ctx.readStdin()
-          : new TextDecoder().decode(await readLocal(changesPath));
-      const changes = parseChanges(json, changesPath === '-' ? 'stdin' : changesPath);
-      if (changes.length === 0) throw new ConfigError('No changes to apply.');
-      const result = await ctx.client().putFiles(penId, changes, toWriteOptions(opts));
-      await reportWrite(ctx, result, opts.follow !== false, `Applied ${changes.length} change(s).`);
-    });
+    .action(
+      async (
+        penId: string,
+        changesPath: string | undefined,
+        opts: WriteFlags & { file?: string[] },
+      ) => {
+        if (!changesPath && !opts.file?.length)
+          throw new ConfigError('Give a changes file ("-" for stdin) or at least one --file.');
+        let changes: FileChange[] = [];
+        if (changesPath) {
+          const json =
+            changesPath === '-'
+              ? await ctx.readStdin()
+              : new TextDecoder().decode(await readLocal(changesPath));
+          changes = parseChanges(json, changesPath === '-' ? 'stdin' : changesPath);
+        }
+        const local = opts.file ? await readLocalFiles(opts.file) : [];
+        const uploads = local.filter(isBinaryInput);
+        for (const f of local) if (!isBinaryInput(f)) changes.push(f);
+        const total = changes.length + uploads.length;
+        if (total === 0) throw new ConfigError('No changes to apply.');
+        const result = await ctx.client().putFiles(penId, changes, toWriteOptions(opts), uploads);
+        await reportWrite(ctx, result, opts.follow !== false, `Applied ${total} change(s).`);
+      },
+    );
 
   addWriteOptions(
     files
