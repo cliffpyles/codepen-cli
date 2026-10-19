@@ -107,6 +107,15 @@ function encPath(path: string): string {
   return normalizePenPath(path).split('/').map(enc).join('/');
 }
 
+/**
+ * Wrap bytes in a Blob for multipart upload. Copies into a fresh
+ * ArrayBuffer-backed view so the part is a valid BlobPart regardless of the
+ * source buffer type (ArrayBuffer or SharedArrayBuffer).
+ */
+function toBlob(data: Uint8Array): Blob {
+  return new Blob([new Uint8Array(data)]);
+}
+
 function dropUndefined<T extends object>(value: T): Partial<T> {
   return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as Partial<T>;
 }
@@ -257,7 +266,7 @@ export class CodePenClient {
     options: WriteOptions = {},
   ): Promise<WriteResult> {
     const form = new FormData();
-    form.set('file', new Blob([data]), normalizePenPath(path).split('/').pop() ?? 'file');
+    form.set('file', toBlob(data), normalizePenPath(path).split('/').pop() ?? 'file');
     if (options.wait !== undefined) form.set('wait', String(options.wait));
     if (options.expected_version_id) form.set('expected_version_id', options.expected_version_id);
     const result = await this.request<WriteResult>(
@@ -415,7 +424,7 @@ export class CodePenClient {
       return this.send<Asset>('POST', '/assets', { filename, content: data });
     }
     const form = new FormData();
-    form.set('file', new Blob([data]), filename);
+    form.set('file', toBlob(data), filename);
     form.set('filename', filename);
     return (await this.request<Asset>('POST', '/assets', { form })).data;
   }
@@ -432,7 +441,7 @@ export class CodePenClient {
       });
     }
     const form = new FormData();
-    form.set('file', new Blob([changes.data]), changes.filename ?? 'file');
+    form.set('file', toBlob(changes.data), changes.filename ?? 'file');
     if (changes.filename) form.set('filename', changes.filename);
     return (await this.request<Asset>('PATCH', `/assets/${enc(id)}`, { form })).data;
   }
