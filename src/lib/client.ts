@@ -205,7 +205,7 @@ export class CodePenClient {
   }
 
   createPen(
-    input: PenInput & { files?: { path: string; content: string }[] },
+    input: PenInput & { files?: { path: string; content: string }[] | undefined },
     options: WriteOptions = {},
   ) {
     return this.send<Pen & { build?: Build }>('POST', '/pens', { ...input, wait: options.wait });
