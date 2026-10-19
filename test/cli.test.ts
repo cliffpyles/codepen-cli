@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { run } from '../src/program.js';
+import { VERSION } from '../src/version.js';
 import { callOf, fakeFetch, jsonResponse, pen, TEST_KEY, TEST_URL } from './helpers.js';
 
 let dir: string;
@@ -45,7 +46,7 @@ describe('codepen CLI', () => {
   it('prints the version', async () => {
     const { out, io: handles } = io();
     expect(await run(['--version'], handles)).toBe(0);
-    expect(out.join('')).toMatch(/^0\.1\.0/);
+    expect(out.join('').trim()).toBe(VERSION);
   });
 
   it('exits 1 with usage output on an unknown command', async () => {

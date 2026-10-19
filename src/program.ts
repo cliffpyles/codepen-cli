@@ -5,6 +5,7 @@ import { registerCollections } from './commands/collections.js';
 import { createContext, type ContextIO, type GlobalOptions } from './commands/context.js';
 import { registerPens } from './commands/pens.js';
 import { exitCodeFor } from './lib/errors.js';
+import { VERSION } from './version.js';
 
 export type ProgramIO = ContextIO;
 
@@ -13,7 +14,7 @@ export function createProgram(io: ProgramIO): Command {
   const program = new Command()
     .name('codepen')
     .description('Command-line interface for the CodePen API v2')
-    .version('0.1.0', '-v, --version')
+    .version(VERSION, '-v, --version')
     .option('--api-key <key>', 'API key (defaults to $CODEPEN_API_KEY, then the config file)')
     .option('--api-url <url>', 'API base URL (defaults to https://api.codepen.io)')
     .option('--json', 'Print raw JSON instead of a table')
