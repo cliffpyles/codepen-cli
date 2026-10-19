@@ -103,4 +103,16 @@ Each commit should leave `npm run check` passing. Keep tooling, source, tests an
 
 ## Releasing
 
-`npm publish` runs `prepublishOnly`, which cleans, runs the full check, and builds. Bump the version in `package.json` and the `.version()` call in `src/program.ts` together.
+Releases are automated from Conventional Commits.
+
+1. Merge work into `main`. [release-please](https://github.com/googleapis/release-please) keeps a "chore(main): release x.y.z" pull request open that bumps `package.json` and `package-lock.json` and updates `CHANGELOG.md` from the commit history. `feat` bumps the minor version, `fix` the patch, and a `!` or `BREAKING CHANGE:` footer the major.
+2. Merge that pull request. release-please tags the commit (`vX.Y.Z`) and creates a GitHub release.
+3. The `publish` job in `.github/workflows/release.yml` checks out the tag and runs `npm publish --provenance`. `prepublishOnly` cleans, runs the full check and builds first, so a red check blocks the publish.
+
+The CLI reads its version from `package.json` at runtime (`src/version.ts`), so there is nothing else to bump by hand.
+
+One-time setup for the repository:
+
+- On npmjs.com, add a trusted publisher for the `codepen-cli` package pointing at `cliffpyles/codepen-cli`, workflow `release.yml`, environment `npm`. No token is stored in GitHub.
+- In the GitHub repository settings, create an environment named `npm`, and under Actions → General enable "Allow GitHub Actions to create and approve pull requests" so release-please can open its pull request.
+- Pull requests opened with the default `GITHUB_TOKEN` do not trigger the CI workflow. If you want CI on the release pull request, give release-please a personal access token via the `token` input.
