@@ -67,7 +67,7 @@ codepen collections add <collection> <pen>
 codepen assets upload ./logo.png
 ```
 
-Every command takes `--json` for raw API output. Listing commands take `--page` and `--per-page` (max 100) and print a `More results: --page N` hint on stderr when there is another page. Commands that trash or delete something ask for confirmation; pass `-y` / `--yes` in scripts, and they refuse to run without it when there is no terminal.
+Every command takes `--json` for raw API output. Listing commands take `--page` and `--per-page` (max 100) and print a `More results: --page N` hint on stderr when there is another page. Top-level listings also take `--sort` (`created`, `updated`, and `popularity` for Pens and Collections) and `--direction` (`asc` or `desc`). Commands that trash or delete something ask for confirmation; pass `-y` / `--yes` in scripts, and they refuse to run without it when there is no terminal.
 
 Global options:
 
@@ -80,29 +80,29 @@ Global options:
 
 ### Commands
 
-| Command                                                                  | Notes                                                                                                                                |
-| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `auth login` / `status` / `logout`                                       | Store, inspect and remove the API key. See [Authentication](#authentication).                                                        |
-| `pens list`                                                              | Filters: `--access`, `--tag`, `--search`, `--deployed`, `--template`, `--forks`, `--editor`, `--sort`, `--direction`.                |
-| `pens get <id>`                                                          | Key/value record with editor and preview URLs.                                                                                       |
-| `pens create`                                                            | `--title`, `--description`, `--tag`, `--access`, `--password`, `--template`, `--file local[=pen/path]` (repeatable). Builds the Pen. |
-| `pens update <id>`                                                       | Same metadata flags as create.                                                                                                       |
-| `pens delete <id>`                                                       | Moves to the trash; restorable on codepen.io for 3 days.                                                                             |
-| `pens fork <id>`                                                         | Copies a 2.0 Pen, with optional metadata overrides. Builds the copy.                                                                 |
-| `pens settings <id>`                                                     | `--auto-deploy`, `--auto-run`, `--auto-save`, `--indent-with`, `--tab-size`.                                                         |
-| `pens files list <pen>`                                                  | Files in the saved head, with IDs and content hashes.                                                                                |
-| `pens files get <pen> <path>`                                            | Prints text, or saves with `-o`. Binary files need `-o` and come from the saved version's preview host.                              |
-| `pens files put <pen> <path>`                                            | From a local file (default `./<path>`), `--from`, `--content` or `--stdin`. Binary data goes multipart.                              |
-| `pens files apply <pen> <changes.json>`                                  | Several writes, moves and deletes as one version. `-` reads stdin.                                                                   |
-| `pens files delete <pen> <path>`                                         | Deletes a file, or everything under a directory.                                                                                     |
-| `pens versions list <pen>` / `get <version>`                             | Browse saved versions. `get` includes file paths and build status.                                                                   |
-| `pens versions restore <pen> <version>`                                  | Copies an older version to the head without building.                                                                                |
-| `pens builds get <build>`                                                | Status, diagnostics, patches and compiled files. `--follow` polls until settled.                                                     |
-| `pens deploy <pen>` / `undeploy <pen>`                                   | Deploy the head or `--version-id <id>`; take it down.                                                                                |
-| `pens collaborators list` / `invite` / `set-role` / `remove` / `invites` | Roles are `Editor` or `Viewer`.                                                                                                      |
-| `collections list` / `get` / `create` / `update` / `delete`              | Collection metadata.                                                                                                                 |
-| `collections pens <id>` / `add <id> <pen>` / `remove <id> <pen>`         | Membership.                                                                                                                          |
-| `assets list` / `get` / `upload` / `update` / `delete`                   | `get -o` downloads; `upload` and `update --from` detect binaries.                                                                    |
+| Command                                                                  | Notes                                                                                                                                                       |
+| ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auth login` / `status` / `logout`                                       | Store, inspect and remove the API key. See [Authentication](#authentication).                                                                               |
+| `pens list`                                                              | Filters: `--access`, `--tag`, `--search`, `--deployed`, `--template`, `--forks`, `--editor`, `--sort`, `--direction`.                                       |
+| `pens get <id>`                                                          | Key/value record with editor and preview URLs.                                                                                                              |
+| `pens create`                                                            | `--title`, `--description`, `--tag`, `--access`, `--password`, `--template`, `--file local[=pen/path]` (repeatable; binaries go multipart). Builds the Pen. |
+| `pens update <id>`                                                       | Same metadata flags as create.                                                                                                                              |
+| `pens delete <id>`                                                       | Moves to the trash; restorable on codepen.io for 3 days.                                                                                                    |
+| `pens fork <id>`                                                         | Copies a 2.0 Pen, with optional metadata overrides. Builds the copy.                                                                                        |
+| `pens settings <id>`                                                     | `--auto-deploy`, `--auto-run`, `--auto-save`, `--indent-with`, `--tab-size`.                                                                                |
+| `pens files list <pen>`                                                  | Files in the saved head, with IDs and content hashes.                                                                                                       |
+| `pens files get <pen> <path>`                                            | Prints text, or saves with `-o`. Binary files need `-o` and come from the saved version's preview host.                                                     |
+| `pens files put <pen> <path>`                                            | From a local file (default `./<path>`), `--from`, `--content` or `--stdin`. Binary data goes multipart.                                                     |
+| `pens files apply <pen> [changes.json]`                                  | Several writes, moves and deletes as one version. `-` reads stdin; `--file local[=pen/path]` adds local files, binaries multipart.                          |
+| `pens files delete <pen> <path>`                                         | Deletes a file, or everything under a directory.                                                                                                            |
+| `pens versions list <pen>` / `get <version>`                             | Browse saved versions with `--sort`/`--direction`. `get` includes file paths and build status.                                                              |
+| `pens versions restore <pen> <version>`                                  | Copies an older version to the head without building.                                                                                                       |
+| `pens builds get <build>`                                                | Status, diagnostics, patches and compiled files. `--follow` polls until settled.                                                                            |
+| `pens deploy <pen>` / `undeploy <pen>`                                   | Deploy the head or `--version-id <id>`; take it down.                                                                                                       |
+| `pens collaborators list` / `invite` / `set-role` / `remove` / `invites` | Roles are `Editor` or `Viewer`.                                                                                                                             |
+| `collections list` / `get` / `create` / `update` / `delete`              | Collection metadata. `list` filters by `--access` and sorts with `--sort`/`--direction`.                                                                    |
+| `collections pens <id>` / `add <id> <pen>` / `remove <id> <pen>`         | Membership.                                                                                                                                                 |
+| `assets list` / `get` / `upload` / `update` / `delete`                   | `list` sorts with `--sort`/`--direction`; `get -o` downloads; `upload` and `update --from` detect binaries.                                                 |
 
 ### Writes and builds
 
