@@ -1,4 +1,5 @@
 import { Command } from 'commander';
+import { registerAssets } from './commands/assets.js';
 import { registerAuth } from './commands/auth.js';
 import { registerCollections } from './commands/collections.js';
 import { createContext, type ContextIO, type GlobalOptions } from './commands/context.js';
@@ -23,6 +24,7 @@ export function createProgram(io: ProgramIO): Command {
   registerAuth(program, ctx);
   registerPens(program, ctx);
   registerCollections(program, ctx);
+  registerAssets(program, ctx);
   return program;
 }
 

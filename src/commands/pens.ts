@@ -94,9 +94,6 @@ function printPen(ctx: CommandContext, pen: Pen, build?: unknown): void {
 
 export function registerPens(program: Command, ctx: CommandContext): void {
   const pens = program.command('pens').description('Work with your Pens');
-  registerFiles(pens, ctx);
-  registerVersions(pens, ctx);
-  registerCollaborators(pens, ctx);
 
   addPagingOptions(
     pens
@@ -260,4 +257,9 @@ Examples:
         ctx.out(renderRecord(result as Record<string, unknown>, ctx.format()));
       },
     );
+
+  // Subgroups last so `pens --help` lists the common commands first.
+  registerFiles(pens, ctx);
+  registerVersions(pens, ctx);
+  registerCollaborators(pens, ctx);
 }
