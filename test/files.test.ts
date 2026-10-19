@@ -107,17 +107,21 @@ describe('pens files get', () => {
     expect(JSON.parse(h.stdout())).toEqual(textFile);
   });
 
-  it('downloads binary files from their URL into --output and refuses to print them', async () => {
+  it('downloads binaries from the saved version preview host into --output and refuses to print them', async () => {
     const bytes = new Uint8Array([137, 80, 78, 71]);
     const fetch = fakeFetch(
       jsonResponse({ body: binFile }),
+      jsonResponse({
+        body: pen({ saved_version: { id: 'v1', preview_url: 'https://pv-v1.codepen.dev/' } }),
+      }),
       new Response(bytes, { status: 200 }),
       jsonResponse({ body: binFile }),
     );
     const h = cliHarness(configFile, { fetch });
     const out = join(dir, 'logo.png');
     expect(await run(['pens', 'files', 'get', 'p1', 'logo.png', '--output', out], h.io)).toBe(0);
-    expect(callOf(fetch, 1).url).toBe('https://cdn/logo.png');
+    expect(callOf(fetch, 1).url).toBe(`${V2}/pens/p1`);
+    expect(callOf(fetch, 2).url).toBe('https://pv-v1.codepen.dev/logo.png');
     expect(new Uint8Array(readFileSync(out))).toEqual(bytes);
     expect(h.stderr()).toContain('Saved 4 bytes');
 
@@ -125,16 +129,19 @@ describe('pens files get', () => {
     expect(h.stderr()).toContain('pass --output');
   });
 
-  it('reports failed downloads and missing URLs', async () => {
+  it('falls back to the file URL without a preview, and reports failed downloads and missing URLs', async () => {
     const fetch = fakeFetch(
       jsonResponse({ body: binFile }),
+      jsonResponse({ body: pen({ saved_version: null }) }),
       new Response(null, { status: 404 }),
       jsonResponse({ body: { ...binFile, url: null } }),
+      jsonResponse({ body: pen({ saved_version: null }) }),
     );
     const h = cliHarness(configFile, { fetch });
     expect(await run(['pens', 'files', 'get', 'p1', 'logo.png', '-o', join(dir, 'x')], h.io)).toBe(
       78,
     );
+    expect(callOf(fetch, 2).url).toBe('https://cdn/logo.png');
     expect(h.stderr()).toContain('HTTP 404');
     expect(await run(['pens', 'files', 'get', 'p1', 'logo.png', '-o', join(dir, 'x')], h.io)).toBe(
       78,
