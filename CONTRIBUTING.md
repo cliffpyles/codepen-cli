@@ -30,6 +30,8 @@ The project is ESM TypeScript. Use `import`/`export` everywhere and keep the `.j
 
 Run `npm run check` before opening a pull request. CI runs the same steps on Node 20, 22 and 24.
 
+Workflow actions are pinned to commit SHAs with the version in a trailing comment. Dependabot updates both together; do not loosen a pin back to a tag.
+
 ## Project layout
 
 ```
