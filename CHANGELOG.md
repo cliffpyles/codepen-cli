@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.0.0](https://github.com/cliffpyles/codepen-cli/compare/v1.1.0...v2.0.0) (2026-10-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* Node.js 22.12 or newer is required; Node 20 is no longer supported.
+
+### Bug Fixes
+
+* build upload blobs so they typecheck under @types/node 26 ([15f245a](https://github.com/cliffpyles/codepen-cli/commit/15f245a2f93eae4ca6576fd988518a0591cd6f3c))
+
+
+### Build System
+
+* require Node.js 22.12 or newer ([83b5c0e](https://github.com/cliffpyles/codepen-cli/commit/83b5c0ed16ae692661b8ff77a771c38e348cb1bb))
+
 ## 1.1.0 (2026-10-19)
 
 
