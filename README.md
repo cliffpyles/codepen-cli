@@ -85,7 +85,7 @@ Global options:
 | `pens fork <id>`                                                         | Copies a 2.0 Pen, with optional metadata overrides. Builds the copy.                                                                 |
 | `pens settings <id>`                                                     | `--auto-deploy`, `--auto-run`, `--auto-save`, `--indent-with`, `--tab-size`.                                                         |
 | `pens files list <pen>`                                                  | Files in the saved head, with IDs and content hashes.                                                                                |
-| `pens files get <pen> <path>`                                            | Prints text, or saves with `-o`. Binary files need `-o`.                                                                             |
+| `pens files get <pen> <path>`                                            | Prints text, or saves with `-o`. Binary files need `-o` and come from the saved version's preview host.                              |
 | `pens files put <pen> <path>`                                            | From a local file (default `./<path>`), `--from`, `--content` or `--stdin`. Binary data goes multipart.                              |
 | `pens files apply <pen> <changes.json>`                                  | Several writes, moves and deletes as one version. `-` reads stdin.                                                                   |
 | `pens files delete <pen> <path>`                                         | Deletes a file, or everything under a directory.                                                                                     |
