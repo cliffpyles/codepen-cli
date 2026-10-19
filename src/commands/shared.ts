@@ -6,6 +6,10 @@ import type { Build, Diagnostic, Page, Pen } from '../types.js';
 
 export const ACCESS_VALUES = ['Public', 'Private', 'Protected', 'Collaborators'] as const;
 export const ROLE_VALUES = ['Editor', 'Viewer'] as const;
+/** Sort fields every paged list accepts. */
+export const LIST_SORTS = ['created', 'updated'] as const;
+/** Pens and Collections can also be ranked by popularity. */
+export const RANKED_SORTS = [...LIST_SORTS, 'popularity'] as const;
 
 export interface PagingOptions {
   page: number;

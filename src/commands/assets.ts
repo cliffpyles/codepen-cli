@@ -3,7 +3,13 @@ import { basename } from 'node:path';
 import type { Command } from 'commander';
 import type { CommandContext } from './context.js';
 import { looksBinary, readLocal } from './files.js';
-import { addPagingOptions, printPage, toListOptions, type PagingOptions } from './shared.js';
+import {
+  addPagingOptions,
+  LIST_SORTS,
+  printPage,
+  toListOptions,
+  type PagingOptions,
+} from './shared.js';
 import { ConfigError } from '../lib/errors.js';
 import { formatJson, renderRecord } from '../lib/output.js';
 import type { Asset } from '../types.js';
@@ -43,7 +49,7 @@ export function toPayload(bytes: Uint8Array, forceBinary: boolean): Uint8Array |
 export function registerAssets(program: Command, ctx: CommandContext): void {
   const assets = program.command('assets').description('Work with your Assets');
 
-  addPagingOptions(assets.command('list').description('List your Assets')).action(
+  addPagingOptions(assets.command('list').description('List your Assets'), LIST_SORTS).action(
     async (opts: PagingOptions) => {
       const page = await ctx.client().listAssets(toListOptions(opts));
       printPage(ctx, page, assetColumns, 'No Assets.');

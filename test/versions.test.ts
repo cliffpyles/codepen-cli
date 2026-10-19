@@ -43,6 +43,23 @@ describe('pens versions', () => {
     expect(h.stderr()).toContain('--page 2');
   });
 
+  it('sorts by created or updated and rejects popularity', async () => {
+    const fetch = fakeFetch(jsonResponse({ body: [] }));
+    const h = cliHarness(configFile, { fetch });
+    expect(
+      await run(
+        ['pens', 'versions', 'list', 'p1', '--sort', 'updated', '--direction', 'ASC'],
+        h.io,
+      ),
+    ).toBe(0);
+    expect(callOf(fetch).url).toBe(
+      `${V2}/pens/p1/versions?page=1&per_page=30&sort=updated&direction=asc`,
+    );
+    const bad = cliHarness(configFile, { fetch: fakeFetch() });
+    expect(await run(['pens', 'versions', 'list', 'p1', '--sort', 'popularity'], bad.io)).toBe(78);
+    expect(bad.stderr()).toContain('--sort must be one of: created, updated');
+  });
+
   it('shows one version as a record with file paths, or JSON', async () => {
     const version = {
       id: 'v1',

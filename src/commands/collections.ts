@@ -6,6 +6,7 @@ import {
   oneOf,
   penColumns,
   printPage,
+  RANKED_SORTS,
   toListOptions,
   type PagingOptions,
 } from './shared.js';
@@ -51,6 +52,7 @@ export function registerCollections(program: Command, ctx: CommandContext): void
       .command('list')
       .description('List your Collections')
       .option('--access <access>', 'Filter by access (comma-separate for several)'),
+    RANKED_SORTS,
   ).action(async (opts: PagingOptions & { access?: string }) => {
     const page = await ctx
       .client()

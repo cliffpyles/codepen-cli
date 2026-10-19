@@ -17,6 +17,7 @@ import {
   penRecord,
   penRecordKeys,
   printPage,
+  RANKED_SORTS,
   toListOptions,
   toWriteOptions,
   type PagingOptions,
@@ -121,7 +122,7 @@ export function registerPens(program: Command, ctx: CommandContext): void {
         oneOf(['All', 'Forked', 'NotForked'], '--forks'),
       )
       .option('--editor <editor>', 'Classic or V2', oneOf(['Classic', 'V2'], '--editor')),
-    ['created', 'updated', 'popularity'],
+    RANKED_SORTS,
   ).action(
     async (
       opts: PagingOptions & {

@@ -35,6 +35,20 @@ describe('collections', () => {
     expect(h.stdout()).toMatch(/^c1\s+Favorites\s+Public\s+2026-10-19$/m);
   });
 
+  it('sorts by created, updated or popularity and rejects other fields', async () => {
+    const fetch = fakeFetch(jsonResponse({ body: [] }));
+    const h = cliHarness(configFile, { fetch });
+    expect(
+      await run(['collections', 'list', '--sort', 'Popularity', '--direction', 'asc'], h.io),
+    ).toBe(0);
+    expect(callOf(fetch).url).toBe(
+      `${V2}/collections?page=1&per_page=30&sort=popularity&direction=asc`,
+    );
+    const bad = cliHarness(configFile, { fetch: fakeFetch() });
+    expect(await run(['collections', 'list', '--sort', 'title'], bad.io)).toBe(78);
+    expect(bad.stderr()).toContain('--sort must be one of: created, updated, popularity');
+  });
+
   it('gets one as a record or JSON', async () => {
     const fetch = fakeFetch(jsonResponse({ body: col }), jsonResponse({ body: col }));
     const h = cliHarness(configFile, { fetch });

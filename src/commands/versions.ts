@@ -2,6 +2,7 @@ import type { Command } from 'commander';
 import type { CommandContext } from './context.js';
 import {
   addPagingOptions,
+  LIST_SORTS,
   penRecord,
   penRecordKeys,
   printPage,
@@ -51,6 +52,7 @@ export function registerVersions(pens: Command, ctx: CommandContext): void {
 
   addPagingOptions(
     versions.command('list <pen>').description('List saved versions, newest first'),
+    LIST_SORTS,
   ).action(async (penId: string, opts: PagingOptions) => {
     const page = await ctx.client().listVersions(penId, toListOptions(opts));
     printPage(ctx, page, versionColumns, 'No versions.');

@@ -57,6 +57,16 @@ describe('assets', () => {
     expect(h.stdout()).toMatch(/^a2\s+logo\.png\s+yes\s+https:\/\/cdn\/logo\.png$/m);
   });
 
+  it('sorts by created or updated and rejects other fields', async () => {
+    const fetch = fakeFetch(jsonResponse({ body: [] }));
+    const h = cliHarness(configFile, { fetch });
+    expect(await run(['assets', 'list', '--sort', 'created', '--direction', 'desc'], h.io)).toBe(0);
+    expect(callOf(fetch).url).toBe(`${V2}/assets?page=1&per_page=30&sort=created&direction=desc`);
+    const bad = cliHarness(configFile, { fetch: fakeFetch() });
+    expect(await run(['assets', 'list', '--sort', 'size'], bad.io)).toBe(78);
+    expect(bad.stderr()).toContain('--sort must be one of: created, updated');
+  });
+
   it('gets as a record or JSON', async () => {
     const fetch = fakeFetch(jsonResponse({ body: textAsset }), jsonResponse({ body: textAsset }));
     const h = cliHarness(configFile, { fetch });
