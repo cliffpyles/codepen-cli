@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import { registerAuth } from './commands/auth.js';
+import { registerCollections } from './commands/collections.js';
 import { createContext, type ContextIO, type GlobalOptions } from './commands/context.js';
 import { registerPens } from './commands/pens.js';
 import { exitCodeFor } from './lib/errors.js';
@@ -21,6 +22,7 @@ export function createProgram(io: ProgramIO): Command {
   const ctx = createContext(() => program.opts<GlobalOptions>(), io);
   registerAuth(program, ctx);
   registerPens(program, ctx);
+  registerCollections(program, ctx);
   return program;
 }
 
