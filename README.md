@@ -14,16 +14,37 @@ Requires Node.js 20 or newer. Run one-off with `npx codepen-cli --help`.
 
 ## Authentication
 
-1. Generate a key at [codepen.io/settings/api](https://codepen.io/settings/api). Personal keys start with `cp_user_`, Team keys with `cp_team_`.
-2. Export it:
+Generate a key at [codepen.io/settings/api](https://codepen.io/settings/api). Personal keys start with `cp_user_`, Team keys with `cp_team_`. Then store it:
 
 ```bash
-export CODEPEN_API_KEY=cp_user_your_key_here
+codepen auth login
 ```
 
-You can also pass `--api-key <key>` on any command. The key only ever reaches `https://api.codepen.io` (or whatever you set in `CODEPEN_API_URL` / `--api-url`).
+The prompt hides what you paste. The key is written to a config file that only your user can read (mode `0600`):
 
-A personal key sees your own work. A Team key sees that Team's work. Other people's Pens return `404` even when public.
+| Platform      | Location                                                                     |
+| ------------- | ---------------------------------------------------------------------------- |
+| macOS / Linux | `$XDG_CONFIG_HOME/codepen/config.json`, else `~/.config/codepen/config.json` |
+| Windows       | `%APPDATA%\codepen\config.json`                                              |
+| Any           | `$CODEPEN_CONFIG_PATH`, when set                                             |
+
+Check what is active and that the API accepts it:
+
+```bash
+codepen auth status
+```
+
+Remove the stored key with `codepen auth logout`.
+
+### Other ways to supply the key
+
+The CLI looks for a key in this order and uses the first one it finds:
+
+1. `--api-key <key>` on the command line. Handy for scripts, but the key ends up in shell history, so avoid it interactively.
+2. The `CODEPEN_API_KEY` environment variable. Best for CI and secret managers. Pipe one into the config file with `codepen auth login --with-token < key.txt`.
+3. The config file written by `auth login`.
+
+The key only ever reaches `https://api.codepen.io`, or whatever you set in `CODEPEN_API_URL` / `--api-url`. A personal key sees your own work. A Team key sees that Team's work. Other people's Pens return `404` even when public.
 
 ## Usage
 
@@ -37,17 +58,20 @@ codepen pens get <id>
 
 Global options:
 
-| Option            | Description                                         |
-| ----------------- | --------------------------------------------------- |
-| `--api-key <key>` | API key. Defaults to `$CODEPEN_API_KEY`.            |
-| `--api-url <url>` | API base URL. Defaults to `https://api.codepen.io`. |
-| `--json`          | Print raw JSON from the API instead of a table.     |
-| `-v, --version`   | Print the version.                                  |
+| Option            | Description                                                    |
+| ----------------- | -------------------------------------------------------------- |
+| `--api-key <key>` | API key. Defaults to `$CODEPEN_API_KEY`, then the config file. |
+| `--api-url <url>` | API base URL. Defaults to `https://api.codepen.io`.            |
+| `--json`          | Print raw JSON from the API instead of a table.                |
+| `-v, --version`   | Print the version.                                             |
 
 ### Commands
 
 | Command                                      | Status  | Notes                                             |
 | -------------------------------------------- | ------- | ------------------------------------------------- |
+| `auth login`                                 | done    | Prompt or `--with-token` from stdin.              |
+| `auth status`                                | done    | Shows source and verifies with one API call.      |
+| `auth logout`                                | done    |                                                   |
 | `pens list`                                  | done    | Filters: `--access`, `--tag`, `--search`, paging. |
 | `pens get <id>`                              | done    |                                                   |
 | `pens create` / `fork` / `update` / `delete` | planned |                                                   |

@@ -10,6 +10,8 @@ npm install
 cp .env.example .env   # optional; add your CODEPEN_API_KEY for manual testing
 ```
 
+`npm run dev` loads `.env` automatically through Node's `--env-file-if-exists` flag, so `npm run dev -- auth status` works with no further setup. The file is gitignored. Alternatively run `npm run dev -- auth login` once and skip `.env` entirely.
+
 The project is ESM TypeScript. Use `import`/`export` everywhere and keep the `.js` extension on relative imports (NodeNext resolution needs it).
 
 ## Day-to-day commands
@@ -40,18 +42,22 @@ src/
     context.ts      # injected dependencies (client, output, format)
   lib/
     client.ts       # fetch-based API client, pagination, error mapping
-    config.ts       # key/URL resolution from flags and env
+    config.ts       # key/URL resolution: flag > env > config file
+    store.ts        # config file location, 0600 read/write/delete
+    tty.ts          # hidden prompt, stdin reading, TTY detection
     errors.ts       # error classes and exit-code mapping
     output.ts       # table/JSON rendering
 test/
   helpers.ts        # fakeFetch, jsonResponse, fixtures
   cli.test.ts       # end-to-end runs of the CLI in-process
+  auth.test.ts      # auth commands against a temp config file
 ```
 
 Unit tests live next to the module they cover (`foo.ts` → `foo.test.ts`). Cross-cutting tests live in `test/`.
 
 ## Testing philosophy
 
+- **No real home directory in tests.** Point `CODEPEN_CONFIG_PATH` at a `mkdtemp` directory (see `test/auth.test.ts`) so tests never read or write your actual config file.
 - **No network in tests.** Every HTTP interaction goes through an injected `fetch`. Use `fakeFetch` from `test/helpers.ts` and assert on the URL, method, headers and body it received.
 - **Test the CLI the way users run it.** `run(argv, io)` executes the real commander program in-process and returns the exit code. Assert on stdout, stderr and the code.
 - **Cover the error paths.** Every API error code has a test for the message and exit code it produces.
