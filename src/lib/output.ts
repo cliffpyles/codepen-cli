@@ -31,3 +31,28 @@ export function formatTable<T>(
 export function render<T>(rows: T[], columns: Column<T>[], format: OutputFormat): string {
   return format === 'json' ? formatJson(rows) : formatTable(rows, columns);
 }
+
+/** Render a single object as aligned `key  value` lines. Nested values are JSON. */
+export function formatRecord(record: Record<string, unknown>, keys?: string[]): string {
+  const entries = (keys ?? Object.keys(record))
+    .filter((k) => record[k] !== undefined)
+    .map((k) => [k, formatValue(record[k])] as const);
+  const width = Math.max(0, ...entries.map(([k]) => k.length));
+  return entries.map(([k, v]) => `${k.padEnd(width)}  ${v}`.trimEnd()).join('\n');
+}
+
+function formatValue(value: unknown): string {
+  if (value === null) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value) && value.every((v) => typeof v === 'string')) return value.join(', ');
+  return JSON.stringify(value);
+}
+
+export function renderRecord(
+  record: Record<string, unknown>,
+  format: OutputFormat,
+  keys?: string[],
+): string {
+  return format === 'json' ? formatJson(record) : formatRecord(record, keys);
+}
