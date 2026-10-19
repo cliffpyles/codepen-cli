@@ -46,17 +46,17 @@ Global options:
 
 ### Commands
 
-| Command                                      | Status   | Notes                                             |
-| -------------------------------------------- | -------- | ------------------------------------------------- |
-| `pens list`                                  | done     | Filters: `--access`, `--tag`, `--search`, paging. |
-| `pens get <id>`                              | done     |                                                   |
-| `pens create` / `fork` / `update` / `delete` | planned  |                                                   |
-| `pens files list                             | get      | put                                               | delete` | planned | Writes build the Pen; see `--wait`. |
-| `pens versions list                          | restore` | planned                                           |         |
-| `pens deploy` / `undeploy`                   | planned  |                                                   |
-| `pens collaborators ...`                     | planned  |                                                   |
-| `collections ...`                            | planned  | List, create, update, delete, add/remove Pens.    |
-| `assets ...`                                 | planned  | List, upload, rename, replace, delete.            |
+| Command                                      | Status  | Notes                                             |
+| -------------------------------------------- | ------- | ------------------------------------------------- |
+| `pens list`                                  | done    | Filters: `--access`, `--tag`, `--search`, paging. |
+| `pens get <id>`                              | done    |                                                   |
+| `pens create` / `fork` / `update` / `delete` | planned |                                                   |
+| `pens files list` / `get` / `put` / `delete` | planned | Writes build the Pen; see `--wait`.               |
+| `pens versions list` / `restore`             | planned |                                                   |
+| `pens deploy` / `undeploy`                   | planned |                                                   |
+| `pens collaborators ...`                     | planned |                                                   |
+| `collections ...`                            | planned | List, create, update, delete, add/remove Pens.    |
+| `assets ...`                                 | planned | List, upload, rename, replace, delete.            |
 
 ### Exit codes
 
