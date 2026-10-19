@@ -1,4 +1,6 @@
 import { vi } from 'vitest';
+import type { ProgramIO } from '../src/program.js';
+import type { Build } from '../src/types.js';
 
 export interface FakeResponseInit {
   status?: number;
@@ -46,4 +48,50 @@ export function pen(overrides: Record<string, unknown> = {}) {
     updated_at: '2026-10-01T00:00:00Z',
     ...overrides,
   };
+}
+
+export interface CliHarness {
+  out: string[];
+  err: string[];
+  stdout: () => string;
+  stderr: () => string;
+  io: ProgramIO;
+}
+
+/**
+ * Isolated CLI harness: no real env, config file, network, or prompts.
+ * `configFile` should live in a mkdtemp directory owned by the test.
+ */
+export function cliHarness(
+  configFile: string,
+  overrides: Partial<ProgramIO> = {},
+  env: NodeJS.ProcessEnv = {},
+): CliHarness {
+  const out: string[] = [];
+  const err: string[] = [];
+  return {
+    out,
+    err,
+    stdout: () => out.join('\n'),
+    stderr: () => err.join('\n'),
+    io: {
+      out: (s) => void out.push(s),
+      err: (s) => void err.push(s),
+      env: {
+        CODEPEN_CONFIG_PATH: configFile,
+        CODEPEN_API_URL: TEST_URL,
+        CODEPEN_API_KEY: TEST_KEY,
+        ...env,
+      },
+      isInteractive: () => false,
+      promptSecret: () => Promise.reject(new Error('promptSecret not expected')),
+      readStdin: () => Promise.reject(new Error('readStdin not expected')),
+      confirm: () => Promise.reject(new Error('confirm not expected')),
+      ...overrides,
+    },
+  };
+}
+
+export function build(overrides: Partial<Build> = {}) {
+  return { id: 'v1', status: 'Success' as const, ...overrides };
 }
