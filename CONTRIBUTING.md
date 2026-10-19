@@ -39,7 +39,9 @@ src/
   index.ts          # public library exports
   types.ts          # API response shapes
   commands/         # one file per command group, registered onto the program
-    context.ts      # injected dependencies (client, output, format)
+    context.ts      # injected dependencies (client, output, prompts, confirm)
+    shared.ts       # option parsers, paging output, build summaries
+    auth.ts pens.ts files.ts versions.ts collaborators.ts collections.ts assets.ts
   lib/
     client.ts       # fetch-based API client, pagination, error mapping
     config.ts       # key/URL resolution: flag > env > config file
@@ -51,6 +53,7 @@ test/
   helpers.ts        # fakeFetch, jsonResponse, fixtures
   cli.test.ts       # end-to-end runs of the CLI in-process
   auth.test.ts      # auth commands against a temp config file
+  <group>.test.ts   # one file per command group, using cliHarness
 ```
 
 Unit tests live next to the module they cover (`foo.ts` → `foo.test.ts`). Cross-cutting tests live in `test/`.
@@ -65,10 +68,18 @@ Unit tests live next to the module they cover (`foo.ts` → `foo.test.ts`). Cros
 
 ### Adding a command
 
-1. Add a client method in `src/lib/client.ts` with a unit test that pins the exact URL and payload.
-2. Register the command in `src/commands/<group>.ts` using the injected `CommandContext`.
-3. Add a `test/cli.test.ts` case for the happy path, the `--json` path, and at least one failure.
+1. Add a client method in `src/lib/client.ts` with a unit test in `client.endpoints.test.ts` that pins the exact URL, method and payload.
+2. Register the command in `src/commands/<group>.ts` using the injected `CommandContext`. Use the parsers in `shared.ts` for enums, booleans and paging, and `ctx.confirmOrAbort` for anything destructive.
+3. Add cases to `test/<group>.test.ts` via `cliHarness` for the happy path, the `--json` path, and at least one failure.
 4. Update the command table in `README.md`.
+
+### Live checks
+
+The suite never touches the network. To try a command against the real API, run it from source with your own key, and keep to read-only commands unless you are working on a Pen you created for the purpose:
+
+```bash
+npm run dev -- pens list --per-page 3
+```
 
 ## Style
 
