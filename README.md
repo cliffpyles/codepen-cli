@@ -1,5 +1,10 @@
 # codepen-cli
 
+[![npm version](https://img.shields.io/npm/v/codepen-cli)](https://www.npmjs.com/package/codepen-cli)
+[![CI](https://github.com/cliffpyles/codepen-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/cliffpyles/codepen-cli/actions/workflows/ci.yml)
+[![Node.js](https://img.shields.io/node/v/codepen-cli)](https://nodejs.org)
+[![License: MIT](https://img.shields.io/npm/l/codepen-cli)](LICENSE)
+
 A command-line interface for the [CodePen API v2](https://blog.codepen.io/docs/api/api-v2/). Manage your Pens, their files, Collections, and Assets from the terminal, and script against CodePen with `--json` output.
 
 > **Status:** early development. The command surface below marks what is implemented and what is planned. The API itself launched in October 2026, so expect changes.
