@@ -8,8 +8,6 @@
 
 A command-line interface for the [CodePen API v2](https://blog.codepen.io/docs/api/api-v2/). Manage your Pens, their files, Collections, and Assets from the terminal, and script against CodePen with `--json` output.
 
-> **Status:** early development. The command surface below marks what is implemented and what is planned. The API itself launched in October 2026, so expect changes.
-
 ## Install
 
 ```bash
