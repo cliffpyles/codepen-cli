@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 import type { Command } from 'commander';
 import type { CommandContext } from './context.js';
+import { registerCollaborators } from './collaborators.js';
 import { registerFiles } from './files.js';
 import { registerVersions } from './versions.js';
 import {
@@ -95,6 +96,7 @@ export function registerPens(program: Command, ctx: CommandContext): void {
   const pens = program.command('pens').description('Work with your Pens');
   registerFiles(pens, ctx);
   registerVersions(pens, ctx);
+  registerCollaborators(pens, ctx);
 
   addPagingOptions(
     pens
