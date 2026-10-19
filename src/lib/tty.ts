@@ -45,3 +45,17 @@ export function isInteractive(
 ): boolean {
   return Boolean(input.isTTY && output.isTTY);
 }
+
+/** Ask a yes/no question. Returns true only for an explicit y/yes. */
+export async function confirm(
+  message: string,
+  { input, output }: Streams = { input: process.stdin, output: process.stdout },
+): Promise<boolean> {
+  const rl = createInterface({ input, output, terminal: false });
+  try {
+    const answer = (await rl.question(`${message} [y/N] `)).trim().toLowerCase();
+    return answer === 'y' || answer === 'yes';
+  } finally {
+    rl.close();
+  }
+}

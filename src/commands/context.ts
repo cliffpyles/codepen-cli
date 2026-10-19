@@ -1,7 +1,8 @@
 import { CodePenClient } from '../lib/client.js';
 import { resolveConfig, type Config } from '../lib/config.js';
 import type { OutputFormat } from '../lib/output.js';
-import { isInteractive, promptSecret, readAll } from '../lib/tty.js';
+import { confirm, isInteractive, promptSecret, readAll } from '../lib/tty.js';
+import { ConfigError } from '../lib/errors.js';
 
 export interface GlobalOptions {
   apiKey?: string;
@@ -20,6 +21,8 @@ export interface ContextIO {
   /** Read all of stdin, for `--with-token` style piping. */
   readStdin?: () => Promise<string>;
   isInteractive?: () => boolean;
+  /** Ask a yes/no question. */
+  confirm?: (message: string) => Promise<boolean>;
 }
 
 /** Everything a command needs. */
@@ -33,6 +36,12 @@ export interface CommandContext {
   promptSecret: (message: string) => Promise<string>;
   readStdin: () => Promise<string>;
   isInteractive: () => boolean;
+  confirm: (message: string) => Promise<boolean>;
+  /**
+   * Guard a destructive action. Passes with --yes; otherwise prompts when interactive
+   * and refuses when not.
+   */
+  confirmOrAbort: (message: string, yes: boolean | undefined) => Promise<void>;
 }
 
 export function createContext(getOptions: () => GlobalOptions, io: ContextIO): CommandContext {
@@ -52,5 +61,17 @@ export function createContext(getOptions: () => GlobalOptions, io: ContextIO): C
     promptSecret: io.promptSecret ?? ((message) => promptSecret(message)),
     readStdin: io.readStdin ?? (() => readAll()),
     isInteractive: io.isInteractive ?? (() => isInteractive()),
+    confirm: io.confirm ?? ((message) => confirm(message)),
+    confirmOrAbort,
   };
+
+  async function confirmOrAbort(message: string, yes: boolean | undefined): Promise<void> {
+    if (yes) return;
+    const ask = io.confirm ?? ((m: string) => confirm(m));
+    const interactive = io.isInteractive ?? (() => isInteractive());
+    if (!interactive()) {
+      throw new ConfigError(`${message} Refusing without --yes in a non-interactive session.`);
+    }
+    if (!(await ask(message))) throw new ConfigError('Aborted.');
+  }
 }
