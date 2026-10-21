@@ -62,7 +62,7 @@ specs/                 # its own package; see API spec below
   generated/           # TypeScript types generated from the spec; do not edit
   lib/spec.ts          # loads, walks and validates the spec
   scripts/generate.ts  # writes generated/, or with --check reports it stale
-  test/                # offline checks of the spec and type tests of generated/
+  test/                # offline checks, type tests and type parity tests
   vendor/              # the official OpenAPI 3.2 meta-schema, unmodified
 ```
 
@@ -114,6 +114,7 @@ npm run spec:check
 
 - **Golden-file test.** `specs/generated/codepen-api-v2.ts` must match what the spec generates now.
 - **Type tests.** `specs/` typechecks, including `test/generated-types.ts`, whose `@ts-expect-error` lines fail the typecheck if a spec edit weakens the generated types.
+- **Type parity tests.** `test/type-parity.ts` lists, field by field, how each hand-written type in `src/types.ts` differs from its generated counterpart: fields where real data conflicts with the hand-written type, fields it types more loosely, and fields only one side has. A change to either side fails the typecheck until the list is updated, so a CLI change to `src/types.ts` can fail `spec:check`; updating the list is optional, like any spec work.
 - **Formatting.** `specs/` is formatted.
 - **Spec validation.** The document is valid against the OpenAPI 3.2 meta-schema in `specs/vendor/` (copied unmodified from [spec.openapis.org](https://spec.openapis.org/oas/3.2/schema/2025-09-17), Apache-2.0). Every `$ref` resolves and every component is used. OperationIds are unique, and every operation has declared tags and path parameters that match its path.
 - **Example validation.** Every example (request, response, parameter, header and schema) validates against its schema, with JSON Schema 2020-12 and format checking.
@@ -140,7 +141,7 @@ They need the network and your key, so neither `spec:check` nor the Spec workflo
 npm --prefix specs run generate
 ```
 
-The CLI does not use these types yet; `src/types.ts` stays hand-written until they are complete and stable. They live outside `src/` until then and will move there when they replace it.
+The CLI does not use these types yet; `src/types.ts` stays hand-written until they are complete and stable. They live outside `src/` until then and will move there when they replace it. The type parity tests show how close that is: the generated types are ready to replace the hand-written ones when every difference they list is gone or is one we choose to keep.
 
 The [Spec workflow](.github/workflows/spec.yml) runs `spec:check` on pushes and pull requests that touch `specs/`. It is separate from CI on purpose and must not be made a required check while the spec is optional.
 
