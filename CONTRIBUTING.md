@@ -56,6 +56,8 @@ test/
   cli.test.ts       # end-to-end runs of the CLI in-process
   auth.test.ts      # auth commands against a temp config file
   <group>.test.ts   # one file per command group, using cliHarness
+specs/
+  codepen-api-v2.yaml  # OpenAPI description of the REST API v2 (see API spec below)
 ```
 
 Unit tests live next to the module they cover (`foo.ts` → `foo.test.ts`). Cross-cutting tests live in `test/`.
@@ -70,10 +72,11 @@ Unit tests live next to the module they cover (`foo.ts` → `foo.test.ts`). Cros
 
 ### Adding a command
 
-1. Add a client method in `src/lib/client.ts` with a unit test in `client.endpoints.test.ts` that pins the exact URL, method and payload.
-2. Register the command in `src/commands/<group>.ts` using the injected `CommandContext`. Use the parsers in `shared.ts` for enums, booleans and paging, and `ctx.confirmOrAbort` for anything destructive.
-3. Add cases to `test/<group>.test.ts` via `cliHarness` for the happy path, the `--json` path, and at least one failure.
-4. Update the command table in `README.md`.
+1. Find the operation in `specs/codepen-api-v2.yaml`. If the API has changed and the operation is missing or different, update the spec first (see [API spec](#api-spec)).
+2. Add a client method in `src/lib/client.ts` with a unit test in `client.endpoints.test.ts` that pins the exact URL, method and payload.
+3. Register the command in `src/commands/<group>.ts` using the injected `CommandContext`. Use the parsers in `shared.ts` for enums, booleans and paging, and `ctx.confirmOrAbort` for anything destructive.
+4. Add cases to `test/<group>.test.ts` via `cliHarness` for the happy path, the `--json` path, and at least one failure.
+5. Update the command table in `README.md`.
 
 ### Live checks
 
@@ -82,6 +85,19 @@ The suite never touches the network. To try a command against the real API, run 
 ```bash
 npm run dev -- pens list --per-page 3
 ```
+
+If a live response has a field the spec does not list, or is missing one it requires, the spec is out of date. Update it as described under [API spec](#api-spec).
+
+## API spec
+
+`specs/codepen-api-v2.yaml` describes CodePen's REST API v2 in OpenAPI 3.2: every operation, request and response, with examples. It is the reference for what the client sends and what the API answers, and it is meant for generating types, interactive docs and Postman collections, checking test coverage, and catching changes in the live API. It is not published to npm. GraphQL is out of scope.
+
+- **Sources.** It is written from CodePen's [API v2](https://blog.codepen.io/docs/api/api-v2/) and [REST API v2](https://blog.codepen.io/docs/api/api-v2/rest-api-v2/) docs pages. `info.version` is the date of the newest docs revision it was written from, not a semver; update it when you bring in a newer revision.
+- **3.1-compatible.** Use only features that also exist in OpenAPI 3.1, so a tool that stops at 3.1 can read the file by changing the `openapi:` line to `3.1.1`.
+- **No duplication.** Every shape is defined once under `components` and reused with `$ref`. Shared fields live in open `*Base`, `*Fields` and `*Input` schemas; the final shapes combine them with `allOf` and close with `unevaluatedProperties: false`. Example objects are written once under `components/examples` and reused with YAML anchors and aliases, each anchor before its aliases.
+- **Closed on purpose.** Response schemas reject unknown fields, so a change in the live API fails validation instead of passing silently. Request schemas are closed too, so a misspelled key is caught even though the server ignores it. When the API and the spec disagree, change the spec to match the API instead of loosening a schema.
+- **Evidence extensions.** Fields the docs do not cover, or have not been seen in a live response, carry an `x-codepen-*` extension. The meaning of each is listed under "Specification extensions" in the spec's `info.description`.
+- **Keep it in step.** When a client change follows a change in the API, update the spec in the same pull request.
 
 ## Style
 
@@ -98,10 +114,12 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 ```
 
 - **type**: `feat`, `fix`, `docs`, `test`, `build`, `ci`, `chore`, `refactor`, `perf`, `style`.
-- **scope** (optional): the area touched, e.g. `cli`, `client`, `config`, `pens`, `deps`.
+- **scope** (optional): the area touched, e.g. `cli`, `client`, `config`, `pens`, `spec`, `deps`.
 - **summary**: imperative, lower case, no trailing period, under 72 characters.
 
 Each commit should leave `npm run check` passing. Keep tooling, source, tests and docs in separate commits when they are independent so history stays easy to bisect and review.
+
+Changes that touch only `specs/` are `docs(spec)`. The spec is not published, so a `feat` or `fix` there would cut a release that changes nothing for users.
 
 ## Releasing
 
