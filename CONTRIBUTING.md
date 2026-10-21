@@ -56,8 +56,11 @@ test/
   cli.test.ts       # end-to-end runs of the CLI in-process
   auth.test.ts      # auth commands against a temp config file
   <group>.test.ts   # one file per command group, using cliHarness
-specs/
-  codepen-api-v2.yaml  # OpenAPI description of the REST API v2 (see API spec below)
+specs/                 # its own package; see API spec below
+  codepen-api-v2.yaml  # OpenAPI description of the REST API v2
+  lib/spec.ts          # loads, walks and validates the spec
+  test/                # offline checks of the spec
+  vendor/              # the official OpenAPI 3.2 meta-schema, unmodified
 ```
 
 Unit tests live next to the module they cover (`foo.ts` → `foo.test.ts`). Cross-cutting tests live in `test/`.
@@ -93,7 +96,27 @@ If a live response has a field the spec does not list, or is missing one it requ
 
 `specs/codepen-api-v2.yaml` describes CodePen's REST API v2 in OpenAPI 3.2: every operation, request and response, with examples. It is the reference for what the client sends and what the API answers, and it is meant for generating types, interactive docs and Postman collections, checking test coverage, and catching changes in the live API. It is not published to npm. GraphQL is out of scope.
 
-For now the spec is optional. Nothing in `npm run check`, CI or the release process depends on it, and a CLI change never has to wait for it. That will change once the CLI's types are generated from it. The spec is excluded from `format:check`; check its formatting with `npx prettier --check --ignore-path .gitignore specs/`.
+For now the spec is optional. Nothing in `npm run check`, CI or the release process depends on it, and a CLI change never has to wait for it. That will change once the CLI's types are generated from it.
+
+### Checking the spec
+
+`specs/` is a separate private package with its own dependencies and lockfile, so installing or updating them never touches the CLI's. The root `typecheck`, `lint`, `format:check` and `test` scripts all skip it. Install once, then check:
+
+```bash
+npm --prefix specs ci
+npm run spec:check
+```
+
+`spec:check` runs offline in a few seconds. It typechecks and formats `specs/`, then checks that:
+
+- the document is valid against the OpenAPI 3.2 meta-schema in `specs/vendor/` (copied unmodified from [spec.openapis.org](https://spec.openapis.org/oas/3.2/schema/2025-09-17), Apache-2.0)
+- every `$ref` resolves and every component is used
+- operationIds are unique, and every operation has declared tags and path parameters that match its path
+- every example (request, response, parameter, header and schema) validates against its schema, with JSON Schema 2020-12 and format checking
+
+`npm --prefix specs run format` fixes formatting.
+
+### Writing the spec
 
 - **Sources.** It is written from CodePen's [API v2](https://blog.codepen.io/docs/api/api-v2/) and [REST API v2](https://blog.codepen.io/docs/api/api-v2/rest-api-v2/) docs pages. `info.version` is the date of the newest docs revision it was written from, not a semver; update it when you bring in a newer revision.
 - **3.1-compatible.** Use only features that also exist in OpenAPI 3.1, so a tool that stops at 3.1 can read the file by changing the `openapi:` line to `3.1.1`.
