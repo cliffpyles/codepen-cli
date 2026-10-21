@@ -1,0 +1,30 @@
+# Checks the OpenAPI spec in specs/. Separate from CI on purpose: until the spec drives the CLI's
+# types, a failure here must never block merging or releasing, so do not make this a required check.
+name: Spec
+
+on:
+  push:
+    branches: [main]
+    paths: ['specs/**', '.github/workflows/spec.yml']
+  pull_request:
+    paths: ['specs/**', '.github/workflows/spec.yml']
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  spec:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            specs/package-lock.json
+      # The spec checks use the root's TypeScript, Vitest, tsx and Prettier.
+      - run: npm ci
+      - run: npm --prefix specs ci
+      - run: npm run spec:check
