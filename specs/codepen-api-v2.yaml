@@ -2103,7 +2103,7 @@ components:
     VersionBase:
       type: object
       description: The fields every version has. Not used on its own; see Version and VersionDetail.
-      required: [id, pen_id, hash, created_at, deployed, build, preview_url]
+      required: [id, pen_id, hash, created_at, deployed, preview_url]
       properties:
         id:
           $ref: '#/components/schemas/VersionId'
@@ -2126,6 +2126,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/VersionBase'
         - type: object
+          required: [build]
           properties:
             build:
               $ref: '#/components/schemas/Build'
@@ -2135,7 +2136,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/VersionBase'
         - type: object
-          required: [files]
+          required: [build, files]
           properties:
             build:
               $ref: '#/components/schemas/BuildDetail'
@@ -2465,28 +2466,32 @@ components:
     BadUserInputError:
       allOf:
         - $ref: '#/components/schemas/Error'
-        - properties:
+        - required: [code]
+          properties:
             code:
               const: BAD_USER_INPUT
       unevaluatedProperties: false
     UnauthenticatedError:
       allOf:
         - $ref: '#/components/schemas/Error'
-        - properties:
+        - required: [code]
+          properties:
             code:
               const: UNAUTHENTICATED
       unevaluatedProperties: false
     ForbiddenError:
       allOf:
         - $ref: '#/components/schemas/Error'
-        - properties:
+        - required: [code]
+          properties:
             code:
               const: FORBIDDEN
       unevaluatedProperties: false
     NotFoundError:
       allOf:
         - $ref: '#/components/schemas/Error'
-        - properties:
+        - required: [code]
+          properties:
             code:
               const: NOT_FOUND
       unevaluatedProperties: false
@@ -2494,7 +2499,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/Error'
         - type: object
-          required: [expected_version_id, current_version_id]
+          required: [code, expected_version_id, current_version_id]
           properties:
             code:
               const: CONFLICT
@@ -2506,14 +2511,16 @@ components:
     RateLimitedError:
       allOf:
         - $ref: '#/components/schemas/Error'
-        - properties:
+        - required: [code]
+          properties:
             code:
               const: RATE_LIMITED
       unevaluatedProperties: false
     InternalError:
       allOf:
         - $ref: '#/components/schemas/Error'
-        - properties:
+        - required: [code]
+          properties:
             code:
               const: INTERNAL
       unevaluatedProperties: false
@@ -2592,6 +2599,7 @@ components:
       oneOf:
         - $ref: '#/components/schemas/FileWriteByPath'
         - $ref: '#/components/schemas/FileWriteById'
+        - $ref: '#/components/schemas/FileMoveById'
         - $ref: '#/components/schemas/FileDeleteByPath'
         - $ref: '#/components/schemas/FileDeleteById'
     FileWriteByPath:
@@ -2609,13 +2617,19 @@ components:
       additionalProperties: false
     FileWriteById:
       type: object
-      description: |
-        Changes the file with that ID, wherever it is: with `content`, writes it; with `path`, moves
-        it there, keeping its ID; with both, does both.
-      required: [id]
-      anyOf:
-        - required: [content]
-        - required: [path]
+      description: Writes the file with that ID, wherever it is.
+      required: [id, content]
+      properties:
+        id:
+          $ref: '#/components/schemas/FileId'
+        content:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    FileMoveById:
+      type: object
+      description: Moves the file with that ID to `path`, keeping its ID. With `content`, writes it there too.
+      required: [id, path]
       properties:
         id:
           $ref: '#/components/schemas/FileId'
