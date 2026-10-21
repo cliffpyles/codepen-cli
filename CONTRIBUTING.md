@@ -58,6 +58,7 @@ test/
   <group>.test.ts   # one file per command group, using cliHarness
 specs/                 # its own package; see API spec below
   codepen-api-v2.yaml  # OpenAPI description of the REST API v2
+  contract/            # contract tests against the live API (read-only)
   generated/           # TypeScript types generated from the spec; do not edit
   lib/spec.ts          # loads, walks and validates the spec
   scripts/generate.ts  # writes generated/, or with --check reports it stale
@@ -92,7 +93,7 @@ The suite never touches the network. To try a command against the real API, run 
 npm run dev -- pens list --per-page 3
 ```
 
-If a live response has a field the spec does not list, or is missing one it requires, the spec is out of date. Updating it is optional; mentioning it in the pull request is enough.
+To check that the live API still matches the spec, run the [contract tests](#contract-tests). If a response has a field the spec does not list, or is missing one it requires, the spec is out of date. Updating it is optional; mentioning it in the pull request is enough.
 
 ## API spec
 
@@ -118,6 +119,18 @@ npm run spec:check
 - **Example validation.** Every example (request, response, parameter, header and schema) validates against its schema, with JSON Schema 2020-12 and format checking.
 
 `npm --prefix specs run format` fixes formatting.
+
+### Contract tests
+
+The contract tests read your own Pens, Collections and Assets from the live API and check each response against the spec: its status, the headers the spec requires (such as `Link` on lists) and its body. Request paths are built from the spec's own path templates, so they test those too.
+
+```bash
+npm run spec:contract
+```
+
+They use the same key as the CLI (`$CODEPEN_API_KEY`, a root `.env`, or the file `codepen auth login` writes) and make about 17 requests, which count against your plan's limits. They are read-only: any request other than `GET` is refused before it is sent. IDs are found from your first page of each list, so an operation is skipped, not failed, when you have nothing to read it with (for example no Classic Pen, or no failed build in your first four 2.0 Pens).
+
+They need the network and your key, so neither `spec:check` nor the Spec workflow runs them. Run them by hand when you change the spec or suspect the API has changed.
 
 ### Generated types
 
