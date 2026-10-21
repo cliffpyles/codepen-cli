@@ -109,15 +109,13 @@ npm --prefix specs ci
 npm run spec:check
 ```
 
-`spec:check` runs offline in about ten seconds. It checks that:
+`spec:check` runs offline in about ten seconds:
 
-- `specs/generated/codepen-api-v2.ts` matches what the spec generates now
-- `specs/` typechecks, including `test/generated-types.ts`, whose `@ts-expect-error` lines fail the typecheck if a spec edit weakens the generated types
-- `specs/` is formatted
-- the document is valid against the OpenAPI 3.2 meta-schema in `specs/vendor/` (copied unmodified from [spec.openapis.org](https://spec.openapis.org/oas/3.2/schema/2025-09-17), Apache-2.0)
-- every `$ref` resolves and every component is used
-- operationIds are unique, and every operation has declared tags and path parameters that match its path
-- every example (request, response, parameter, header and schema) validates against its schema, with JSON Schema 2020-12 and format checking
+- **Golden-file test.** `specs/generated/codepen-api-v2.ts` must match what the spec generates now.
+- **Type tests.** `specs/` typechecks, including `test/generated-types.ts`, whose `@ts-expect-error` lines fail the typecheck if a spec edit weakens the generated types.
+- **Formatting.** `specs/` is formatted.
+- **Spec validation.** The document is valid against the OpenAPI 3.2 meta-schema in `specs/vendor/` (copied unmodified from [spec.openapis.org](https://spec.openapis.org/oas/3.2/schema/2025-09-17), Apache-2.0). Every `$ref` resolves and every component is used. OperationIds are unique, and every operation has declared tags and path parameters that match its path.
+- **Example validation.** Every example (request, response, parameter, header and schema) validates against its schema, with JSON Schema 2020-12 and format checking.
 
 `npm --prefix specs run format` fixes formatting.
 
