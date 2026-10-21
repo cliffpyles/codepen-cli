@@ -84,7 +84,7 @@ Unit tests live next to the module they cover (`foo.ts` → `foo.test.ts`). Cros
 
 `specs/codepen-api-v2.yaml` describes every operation and is a good place to check request and response shapes. If the API has changed, updating the spec too is welcome but not required (see [API spec](#api-spec)).
 
-### Live checks
+### Manual testing
 
 The suite never touches the network. To try a command against the real API, run it from source with your own key, and keep to read-only commands unless you are working on a Pen you created for the purpose:
 
