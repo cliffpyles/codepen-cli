@@ -158,6 +158,8 @@ npm run test:watch           # vitest in watch mode
 npm run check                # typecheck + lint + format + tests with coverage
 ```
 
+The REST API the CLI talks to is described in OpenAPI at [`specs/codepen-api-v2.yaml`](specs/codepen-api-v2.yaml). [CONTRIBUTING.md](CONTRIBUTING.md#api-spec) covers how it is kept up to date.
+
 ## License
 
 [MIT](LICENSE)

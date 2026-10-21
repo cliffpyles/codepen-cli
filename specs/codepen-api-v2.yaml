@@ -1,0 +1,3331 @@
+openapi: 3.2.0
+# Written against OpenAPI 3.2.0 but uses only features that also exist in 3.1, so tools
+# that stop at 3.1 can read it by changing this one line.
+
+info:
+  title: CodePen REST API v2
+  version: '2026-10-02'
+  summary: Read and write your own CodePen Pens, Collections and Assets over plain JSON and HTTP.
+  description: |
+    The REST surface of the CodePen API v2. It offers the same operations as the GraphQL API v2
+    (`POST https://api.codepen.io/v2/graphql`, not described here); both run the same logic, so a
+    change made through one is visible through the other. Keys, scope, limits and error codes are
+    shared.
+
+    `info.version` is the date of the newest docs revision this document was written from
+    (API v2 page: 2026-10-02; REST API v2 page: 2026-10-01). The API itself is versioned by the
+    `/v2` in its base URL.
+
+    ## Access and scope
+
+    A key belongs to a User (`cp_user_…`) or a Team (`cp_team_…`) and works only with that owner's
+    own Pens, Collections and Assets, whatever their privacy. Other people's work is never
+    reachable, even when public and even for collaborators: requesting it answers `404 NOT_FOUND`,
+    exactly like an ID that does not exist. Listing a Collection returns only the key owner's Pens in
+    it. There is no endpoint for the key owner; every list is theirs.
+
+    A Team's key works only while the Team is PRO, and writes made with it are attributed to the
+    Team's owner. One key exists per owner at a time; rotating it in Settings → API invalidates the
+    old one immediately.
+
+    ## Classic Pens and 2.0 Pens
+
+    Every Pen says which editor made it: `editor` is `V2` or `Classic`. A 2.0 Pen has files, saved
+    versions, builds and deployments, all readable and writable. A Classic Pen is read-only: it reads
+    as a set of files named for its panels' preprocessors (`/index.html`, `/style.scss`,
+    `/script.js`…), has no versions and no deployment, and answers `403 FORBIDDEN` to writes. Classic
+    Pens can still be added to and removed from Collections.
+
+    ## Identifiers
+
+    | Thing | ID |
+    | :--- | :--- |
+    | Pen | Its cpid (2.0 Pens, a UUID) or its hashid (the slug in a Classic Pen's URL). Either works for any Pen. |
+    | Pen file | A stable ID assigned when the file is created. It survives renames and edits. |
+    | Pen version | Its cpid. |
+    | Build | The ID of the version it built. A version and its build share one ID. |
+    | Deployment | A hashid. |
+    | Collection | Its hashid, the ID in `codepen.io/collection/<id>`. |
+    | Asset | Its hashid. |
+
+    ## Conventions
+
+    - Keys are snake_case in requests and responses.
+    - Enum values are accepted in any case and returned in PascalCase. The request schemas list the
+      PascalCase spelling only.
+    - Unknown request keys are ignored by the server. The request schemas here are closed anyway, so
+      a misspelled key is caught by validation instead of being silently dropped.
+    - Timestamps are RFC 3339 in UTC.
+    - Write endpoints take a JSON body, or `multipart/form-data` when they upload files. Responses are
+      JSON objects, or JSON arrays for lists. Creates answer `201`; removals with nothing to return
+      answer `204`.
+
+    ## Writes and builds
+
+    Pens are compiled. Every write to a 2.0 Pen's files (creating, forking, writing, moving or
+    deleting files) saves a new version and builds it, like pushing a commit to a repository with CI.
+    The compiler may ask for changes (*patches*): adding `/tsconfig.json`, adding `type="module"` to a
+    `script` tag, adding a dependency to `package.json`, syncing the Pen's config file, or
+    formatting on save. The API applies them, rebuilds, and saves the result as one more version
+    (at most five builds). So a write makes one version, or two:
+
+    1. The version holding exactly the files you sent. Its build ends `Canceled` with `next_id` set.
+    2. The version with the patches applied. It becomes the head; its build lists `applied_patches`
+       and its `previous_id` points back to the first.
+
+    A write waits for its build before answering: `wait` seconds, 45 by default, at most 75, or 0 to
+    answer as soon as the files are saved. The build carries on either way. Before writing to the
+    same Pen again:
+
+    1. Wait until the build is settled, following `next_id` through `GET /builds/{id}`. A build is
+       settled when its status is `Success` or `Failed`, or `Canceled` with no `next_id`.
+    2. Read the files again (`GET /pens/{id}/files`, or `GET /versions/{id}` with the settled
+       build's `version_id`). Never reuse your own copy of what you sent.
+    3. Send that version's ID as `expected_version_id`, so a write based on stale files is refused
+       with `409 CONFLICT` instead of saved over newer ones.
+
+    If someone has the Pen open in the editor when the API saves, their tab goes read-only and asks
+    them to refresh. The API's write always goes through.
+
+    A failed build is not an error response: the write answers `200` (or `201`) with the files
+    saved and `build.status` `Failed`. Restoring a version is the one write that does not build; the
+    restored version keeps the build of the version it copied.
+
+    ## Source files and output files
+
+    - A version's `files` are the source (think `src`): what you read, edit and write back. Their
+      `url` serves the file raw from `*.codepenusercontent.com`.
+    - A build's `files` are the compiled output (think `dist`): what `preview_url` and a deployment
+      serve. They exist only when the build succeeded. You never write them.
+
+    ## Privacy and passwords
+
+    Pens and Collections have one privacy setting, `access`: `Public` (listed on the site),
+    `Private` (unlisted; anyone with the link can view), `Protected` (Pens only: private and needs a
+    password) or `Collaborators` (Pens only: only collaborators can view). Anything but `Public`
+    needs PRO; a Free account gets `403 FORBIDDEN`, never a silent fallback. `Protected` needs a
+    password of at least 8 characters when a Pen is created, forked or switched to it. Passwords are
+    write-only; no read returns them.
+
+    ## Deleting and restoring
+
+    Deleting a Pen or Collection moves it to the trash (Your Work → Deleted Items on the site),
+    restorable for 3 days, after which it is gone. Deleting a Collection leaves its Pens untouched.
+    Deleting does not give back a daily create. Deleting an Asset removes it from storage.
+
+    ## Limits
+
+    | Plan | Requests | Reads | Creates per day |
+    | :--- | :--- | :--- | :--- |
+    | Free | 100/hour | 1,000/day | 3 Pens (creates and forks together) and 3 Collections |
+    | PRO (User or Team) | 3,000/hour | 10,000/day | 50 Pens and 50 Collections |
+
+    Past a limit, requests answer `429 RATE_LIMITED` until the hour or day is up. Each day runs from
+    the first request of that kind; rotating the key does not reset counters. A Team key counts
+    against the Team, apart from its members' own keys. The daily create allowance counts creates,
+    not Pens or Collections currently held.
+
+    Other limits: pages hold at most 100 items; a JSON body is capped at 16 MB; a multipart request
+    at 120 MB and one file in it at 30 MB (your plan's own limits apply on save); a write waits at
+    most 75 seconds for its build; Asset filenames are unique among your Assets and cannot contain
+    `/` or `\`.
+
+    ## Specification extensions
+
+    - `x-codepen-undocumented: true` marks a field the live API returns that the docs do not
+      mention. It was observed in real responses, but CodePen has not committed to it.
+    - `x-codepen-changelog: <url>` marks a field the docs do not mention yet but CodePen's
+      changelog announced. The value links to the changelog entry. Such fields are treated as part
+      of the contract.
+    - `x-codepen-unverified: true` marks a documented shape that has not yet been seen in a live
+      response (for example a field that was always empty), so its item type or nullability comes
+      from the docs alone.
+    - `x-codepen-multi-segment: true` marks a path parameter that spans several path segments, such
+      as a file path with slashes. OpenAPI path templates cannot express that; send the path with
+      its slashes unencoded.
+  contact:
+    name: CodePen Support
+    url: https://codepen.io/support
+
+externalDocs:
+  description: CodePen API v2 docs
+  url: https://blog.codepen.io/docs/api/api-v2/
+
+servers:
+  - url: https://api.codepen.io/v2
+    description: Production
+
+security:
+  - bearerAuth: []
+  - apiKeyHeader: []
+
+tags:
+  - name: Pens
+    description: Your Pens, their details and editor settings.
+    externalDocs:
+      url: https://blog.codepen.io/docs/api/api-v2/rest-api-v2/
+  - name: Files
+    description: |
+      A Pen's source files in its saved head. Every write saves a new version and builds it. Files
+      belong to 2.0 Pens; a Classic Pen's files can be read but not written.
+  - name: Versions
+    description: Saved versions of a 2.0 Pen. Each holds the source files and has one build.
+  - name: Builds
+    description: The compiler's run over a version. Poll a build while it is `Queued` or `Running`.
+  - name: Deployments
+    description: Deploying a version to the Pen's public URL, and taking it down.
+  - name: Collaborators
+    description: People who can edit or view a Pen, and pending invitations.
+  - name: Collections
+    description: Your Collections and the Pens in them.
+  - name: Assets
+    description: Files in your Asset Hosting. Assets belong to no Pen, so writing one makes no version and no build.
+
+paths:
+  /pens:
+    get:
+      operationId: listPens
+      tags: [Pens]
+      summary: List your Pens
+      description: |
+        Your Pens, paged and filterable. Every filter given must match. Each Pen carries its saved
+        head without files.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/SortWithPopularity'
+        - $ref: '#/components/parameters/Direction'
+        - $ref: '#/components/parameters/AccessFilter'
+        - $ref: '#/components/parameters/DeployedFilter'
+        - $ref: '#/components/parameters/TemplateFilter'
+        - $ref: '#/components/parameters/ForksFilter'
+        - $ref: '#/components/parameters/EditorFilter'
+        - $ref: '#/components/parameters/TagsFilter'
+        - $ref: '#/components/parameters/SearchTermFilter'
+      responses:
+        '200':
+          description: One page of Pens.
+          headers:
+            Link:
+              $ref: '#/components/headers/Link'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Pen'
+              examples:
+                pens:
+                  $ref: '#/components/examples/PenList'
+        '400':
+          $ref: '#/components/responses/BadUserInput'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+    post:
+      operationId: createPen
+      tags: [Pens]
+      summary: Create a 2.0 Pen
+      description: |
+        Creates a 2.0 Pen and builds it. Without `files` the Pen gets starter files. `title` defaults
+        to "Untitled" and `access` to the account's default privacy. Counts against the daily Pen
+        create allowance, shared with forks.
+
+        The new Pen is built like any other write, so its files may be more than the files sent. The
+        response is the Pen plus a top-level `build`: the build of its newest version.
+      parameters:
+        - $ref: '#/components/parameters/Wait'
+      requestBody:
+        $ref: '#/components/requestBodies/PenCreate'
+      responses:
+        '201':
+          description: The new Pen, with the build of its newest version.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PenWithBuild'
+              examples:
+                created:
+                  $ref: '#/components/examples/PenWithBuild'
+        '400':
+          $ref: '#/components/responses/BadUserInput'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /pens/{id}:
+    parameters:
+      - $ref: '#/components/parameters/PenId'
+    get:
+      operationId: getPen
+      tags: [Pens]
+      summary: Get one Pen
+      responses:
+        '200':
+          description: The Pen. `saved_version` carries no files; read them from `GET /pens/{id}/files`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pen'
+              examples:
+                v2:
+                  $ref: '#/components/examples/Pen'
+                classic:
+                  $ref: '#/components/examples/ClassicPen'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+    patch:
+      operationId: updatePen
+      tags: [Pens]
+      summary: Update a Pen's details
+      description: |
+        Changes only the keys given; `tags` replaces the whole list. These details are not files, so
+        the update makes no version and no build.
+
+        On a Pen that is already `Protected`, `password` alone replaces the password. A `password`
+        with any `access` other than `Protected` answers 400.
+      requestBody:
+        $ref: '#/components/requestBodies/PenUpdate'
+      responses:
+        '200':
+          description: The updated Pen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pen'
+              examples:
+                updated:
+                  $ref: '#/components/examples/Pen'
+        '400':
+          $ref: '#/components/responses/BadUserInput'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+    delete:
+      operationId: deletePen
+      tags: [Pens]
+      summary: Move a Pen to the trash
+      description: |
+        Moves the Pen to the trash. It is listed under Deleted Items on the site and can be restored
+        there for 3 days, after which it is gone. Does not give back a daily create.
+      responses:
+        '204':
+          $ref: '#/components/responses/NoContent'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /pens/{id}/fork:
+    parameters:
+      - $ref: '#/components/parameters/PenId'
+    post:
+      operationId: forkPen
+      tags: [Pens]
+      summary: Fork one of your 2.0 Pens
+      description: |
+        Copies one of your 2.0 Pens and builds the copy. The copy keeps the original's title,
+        description, tags and access unless given. A fork of a `Protected` Pen is `Protected` too, so
+        it needs a `password`. Counts against the daily Pen create allowance, shared with creates.
+      parameters:
+        - $ref: '#/components/parameters/Wait'
+      requestBody:
+        $ref: '#/components/requestBodies/PenFork'
+      responses:
+        '201':
+          description: The new Pen, with the build of its newest version.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PenWithBuild'
+              examples:
+                forked:
+                  $ref: '#/components/examples/PenWithBuild'
+        '400':
+          $ref: '#/components/responses/BadUserInput'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /pens/{id}/settings:
+    parameters:
+      - $ref: '#/components/parameters/PenId'
+    patch:
+      operationId: updatePenSettings
+      tags: [Pens]
+      summary: Update a Pen's editor settings
+      description: Changes only the keys given. Makes no version and no build.
+      requestBody:
+        $ref: '#/components/requestBodies/PenSettingsUpdate'
+      responses:
+        '200':
+          description: The Pen's settings after the change.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PenSettings'
+              examples:
+                settings:
+                  $ref: '#/components/examples/PenSettings'
+        '400':
+          $ref: '#/components/responses/BadUserInput'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /pens/{id}/files:
+    parameters:
+      - $ref: '#/components/parameters/PenId'
+    get:
+      operationId: listPenFiles
+      tags: [Files]
+      summary: List the saved head's files
+      description: |
+        Every source file in the Pen's saved head, with content. Not paged. For a Classic Pen these
+        are its panels as files, built on read, with `url` null.
+      responses:
+        '200':
+          description: The files.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/File'
+              examples:
+                files:
+                  $ref: '#/components/examples/FileList'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+    put:
+      operationId: writePenFiles
+      tags: [Files]
+      summary: Apply several file changes as one version
+      description: |
+        Applies a list of file changes, in order, as one new version and builds it. Each change
+        writes, moves or deletes one file (or every file under a directory). Binary files go up as
+        parts of a multipart request, each one more change applied after those in `changes`.
+
+        The response is the newest version the write produced, with its source files, and that
+        version's build. See *Writes and builds* above before writing again.
+      parameters:
+        - $ref: '#/components/parameters/Wait'
+      requestBody:
+        $ref: '#/components/requestBodies/FilesWrite'
+      responses:
+        '200':
+          $ref: '#/components/responses/WriteResult'
+        '400':
+          $ref: '#/components/responses/BadUserInput'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /pens/{id}/files/{path}:
+    parameters:
+      - $ref: '#/components/parameters/PenId'
+      - $ref: '#/components/parameters/FilePath'
+    get:
+      operationId: getPenFile
+      tags: [Files]
+      summary: Get one file
+      description: One file from the saved head, with `content` (null for binary files) and `url`.
+      responses:
+        '200':
+          description: The file.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/File'
+              examples:
+                text:
+                  $ref: '#/components/examples/FileText'
+                binary:
+                  $ref: '#/components/examples/FileBinary'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+    put:
+      operationId: writePenFile
+      tags: [Files]
+      summary: Write one file
+      description: |
+        Writes the file at `path`, creating it if needed: text as JSON `content`, or any file as a
+        multipart part named `file`. Saves a new version and builds it.
+      parameters:
+        - $ref: '#/components/parameters/Wait'
+      requestBody:
+        $ref: '#/components/requestBodies/FileWrite'
+      responses:
+        '200':
+          $ref: '#/components/responses/WriteResult'
+        '400':
+          $ref: '#/components/responses/BadUserInput'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+    delete:
+      operationId: deletePenFile
+      tags: [Files]
+      summary: Delete one file or a directory
+      description: |
+        Deletes the file at `path`, or every file under it when `path` is a directory. Saves a new
+        version and builds it, so it answers like any other write rather than 204.
+      parameters:
+        - $ref: '#/components/parameters/ExpectedVersionId'
+        - $ref: '#/components/parameters/Wait'
+      responses:
+        '200':
+          $ref: '#/components/responses/WriteResult'
+        '400':
+          $ref: '#/components/responses/BadUserInput'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /pens/{id}/versions:
+    parameters:
+      - $ref: '#/components/parameters/PenId'
+    get:
+      operationId: listPenVersions
+      tags: [Versions]
+      summary: List a Pen's saved versions
+      description: Saved versions, paged, each with its build. Files are left out; 2.0 Pens only.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Direction'
+      responses:
+        '200':
+          description: One page of versions.
+          headers:
+            Link:
+              $ref: '#/components/headers/Link'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Version'
+              examples:
+                versions:
+                  $ref: '#/components/examples/VersionList'
+        '400':
+          $ref: '#/components/responses/BadUserInput'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /pens/{id}/versions/{version_id}/restore:
+    parameters:
+      - $ref: '#/components/parameters/PenId'
+      - $ref: '#/components/parameters/RestoreVersionId'
+    post:
+      operationId: restorePenVersion
+      tags: [Versions]
+      summary: Restore an older version to the head
+      description: |
+        Copies an older version to the head. The one write that does not build: the restored version
+        keeps the build of the version it copied.
+      responses:
+        '200':
+          description: The Pen, whose `saved_version` is the new head.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pen'
+              examples:
+                restored:
+                  $ref: '#/components/examples/Pen'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /versions/{id}:
+    parameters:
+      - $ref: '#/components/parameters/VersionId'
+    get:
+      operationId: getVersion
+      tags: [Versions]
+      summary: Get one version with its files
+      description: |
+        One version with its source files and its build, including the build's compiled output when
+        the build succeeded.
+      responses:
+        '200':
+          description: The version.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionDetail'
+              examples:
+                version:
+                  $ref: '#/components/examples/VersionDetail'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /builds/{id}:
+    parameters:
+      - $ref: '#/components/parameters/BuildId'
+    get:
+      operationId: getBuild
+      tags: [Builds]
+      summary: Get a build
+      description: |
+        A version's build, by the version's ID. Poll it while `status` is `Queued` or `Running`, and
+        follow `next_id` when it is `Canceled` with one; that next build answers `Running` until its
+        version is saved. Includes the compiled output when the build succeeded.
+      responses:
+        '200':
+          description: The build.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BuildDetail'
+              examples:
+                success:
+                  $ref: '#/components/examples/BuildSuccess'
+                queued:
+                  $ref: '#/components/examples/BuildQueued'
+                canceledWithNext:
+                  $ref: '#/components/examples/BuildCanceled'
+                patched:
+                  $ref: '#/components/examples/BuildPatched'
+                failed:
+                  $ref: '#/components/examples/BuildFailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /pens/{id}/deployment:
+    parameters:
+      - $ref: '#/components/parameters/PenId'
+    put:
+      operationId: deployPen
+      tags: [Deployments]
+      summary: Deploy a version
+      description: Deploys `version_id`, by default the saved head, to the Pen's public URL.
+      requestBody:
+        $ref: '#/components/requestBodies/Deploy'
+      responses:
+        '200':
+          description: The deployment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deployment'
+              examples:
+                deployed:
+                  $ref: '#/components/examples/Deployment'
+        '400':
+          $ref: '#/components/responses/BadUserInput'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+    delete:
+      operationId: undeployPen
+      tags: [Deployments]
+      summary: Take the deployment down
+      responses:
+        '204':
+          $ref: '#/components/responses/NoContent'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /pens/{id}/collaborators:
+    parameters:
+      - $ref: '#/components/parameters/PenId'
+    get:
+      operationId: listPenCollaborators
+      tags: [Collaborators]
+      summary: List a Pen's collaborators
+      description: Everyone on the Pen, including its owner (role `Owner`). Not paged.
+      responses:
+        '200':
+          description: The collaborators.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollaboratorList'
+              examples:
+                collaborators:
+                  $ref: '#/components/examples/CollaboratorList'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+    post:
+      operationId: invitePenCollaborator
+      tags: [Collaborators]
+      summary: Invite a collaborator
+      description: Invites someone by email or username. Invites are a plan feature; over the plan's limit answers 403.
+      requestBody:
+        $ref: '#/components/requestBodies/CollaboratorInvite'
+      responses:
+        '201':
+          description: The Pen's pending invites, including the new one.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteList'
+              examples:
+                invites:
+                  $ref: '#/components/examples/InviteList'
+        '400':
+          $ref: '#/components/responses/BadUserInput'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /pens/{id}/collaborators/{username}:
+    parameters:
+      - $ref: '#/components/parameters/PenId'
+      - $ref: '#/components/parameters/Username'
+    patch:
+      operationId: updatePenCollaborator
+      tags: [Collaborators]
+      summary: Change a collaborator's role
+      requestBody:
+        $ref: '#/components/requestBodies/CollaboratorUpdate'
+      responses:
+        '200':
+          description: The collaborators after the change.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollaboratorList'
+              examples:
+                collaborators:
+                  $ref: '#/components/examples/CollaboratorList'
+        '400':
+          $ref: '#/components/responses/BadUserInput'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+    delete:
+      operationId: removePenCollaborator
+      tags: [Collaborators]
+      summary: Remove a collaborator
+      responses:
+        '204':
+          $ref: '#/components/responses/NoContent'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /pens/{id}/invites:
+    parameters:
+      - $ref: '#/components/parameters/PenId'
+    get:
+      operationId: listPenInvites
+      tags: [Collaborators]
+      summary: List pending invitations
+      description: Invitations not yet accepted. Not paged.
+      responses:
+        '200':
+          description: The pending invites.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteList'
+              examples:
+                invites:
+                  $ref: '#/components/examples/InviteList'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /collections:
+    get:
+      operationId: listCollections
+      tags: [Collections]
+      summary: List your Collections
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/SortWithPopularity'
+        - $ref: '#/components/parameters/Direction'
+        - $ref: '#/components/parameters/CollectionAccessFilter'
+      responses:
+        '200':
+          description: One page of Collections.
+          headers:
+            Link:
+              $ref: '#/components/headers/Link'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Collection'
+              examples:
+                collections:
+                  $ref: '#/components/examples/CollectionList'
+        '400':
+          $ref: '#/components/responses/BadUserInput'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+    post:
+      operationId: createCollection
+      tags: [Collections]
+      summary: Create a Collection
+      description: Counts against the daily Collection create allowance.
+      requestBody:
+        $ref: '#/components/requestBodies/CollectionCreate'
+      responses:
+        '201':
+          description: The new Collection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Collection'
+              examples:
+                created:
+                  $ref: '#/components/examples/Collection'
+        '400':
+          $ref: '#/components/responses/BadUserInput'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /collections/{id}:
+    parameters:
+      - $ref: '#/components/parameters/CollectionId'
+    get:
+      operationId: getCollection
+      tags: [Collections]
+      summary: Get one Collection
+      responses:
+        '200':
+          description: The Collection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Collection'
+              examples:
+                collection:
+                  $ref: '#/components/examples/Collection'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+    patch:
+      operationId: updateCollection
+      tags: [Collections]
+      summary: Update a Collection
+      description: Changes only the keys given.
+      requestBody:
+        $ref: '#/components/requestBodies/CollectionUpdate'
+      responses:
+        '200':
+          description: The updated Collection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Collection'
+              examples:
+                updated:
+                  $ref: '#/components/examples/Collection'
+        '400':
+          $ref: '#/components/responses/BadUserInput'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+    delete:
+      operationId: deleteCollection
+      tags: [Collections]
+      summary: Move a Collection to the trash
+      description: |
+        Moves the Collection itself to the trash; the Pens in it are untouched. Listed under Deleted
+        Items on the site and restorable there for 3 days. Does not give back a daily create.
+      responses:
+        '204':
+          $ref: '#/components/responses/NoContent'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /collections/{id}/pens:
+    parameters:
+      - $ref: '#/components/parameters/CollectionId'
+    get:
+      operationId: listCollectionPens
+      tags: [Collections]
+      summary: List your Pens in a Collection
+      description: Your Pens in the Collection, paged. Pens by other people are skipped.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Direction'
+      responses:
+        '200':
+          description: One page of Pens.
+          headers:
+            Link:
+              $ref: '#/components/headers/Link'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Pen'
+              examples:
+                pens:
+                  $ref: '#/components/examples/PenList'
+        '400':
+          $ref: '#/components/responses/BadUserInput'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /collections/{id}/pens/{pen_id}:
+    parameters:
+      - $ref: '#/components/parameters/CollectionId'
+      - $ref: '#/components/parameters/CollectionPenId'
+    put:
+      operationId: addPenToCollection
+      tags: [Collections]
+      summary: Add a Pen to a Collection
+      description: Works for Classic Pens too.
+      responses:
+        '200':
+          description: The Collection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Collection'
+              examples:
+                collection:
+                  $ref: '#/components/examples/Collection'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+    delete:
+      operationId: removePenFromCollection
+      tags: [Collections]
+      summary: Remove a Pen from a Collection
+      description: Removes the Pen from the Collection only; the Pen itself is untouched.
+      responses:
+        '204':
+          $ref: '#/components/responses/NoContent'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /assets:
+    get:
+      operationId: listAssets
+      tags: [Assets]
+      summary: List your Assets
+      description: Your Assets, paged. `content` is left out.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Direction'
+      responses:
+        '200':
+          description: One page of Assets.
+          headers:
+            Link:
+              $ref: '#/components/headers/Link'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Asset'
+              examples:
+                assets:
+                  $ref: '#/components/examples/AssetList'
+        '400':
+          $ref: '#/components/responses/BadUserInput'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+    post:
+      operationId: createAsset
+      tags: [Assets]
+      summary: Add an Asset
+      description: |
+        Adds a file to your Asset Hosting: a multipart part named `file` (and optional `filename`,
+        defaulting to the part's own), or for text, JSON `filename` and `content`. Counts against
+        the plan's per-file size and total storage (403 when over). A duplicate filename answers 400.
+      requestBody:
+        $ref: '#/components/requestBodies/AssetCreate'
+      responses:
+        '201':
+          description: The new Asset, without `content`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Asset'
+              examples:
+                created:
+                  $ref: '#/components/examples/Asset'
+        '400':
+          $ref: '#/components/responses/BadUserInput'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /assets/{id}:
+    parameters:
+      - $ref: '#/components/parameters/AssetId'
+    get:
+      operationId: getAsset
+      tags: [Assets]
+      summary: Get one Asset
+      description: |
+        One Asset, with `content` for text files (SVG, HTML, CSS, Sass, JS, TS, JSON, Markdown,
+        plain text and similar). `content` is null for binary files, whose bytes are at `url`.
+      responses:
+        '200':
+          description: The Asset.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetDetail'
+              examples:
+                text:
+                  $ref: '#/components/examples/AssetDetailText'
+                binary:
+                  $ref: '#/components/examples/AssetDetailBinary'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+    patch:
+      operationId: updateAsset
+      tags: [Assets]
+      summary: Rename or replace an Asset
+      description: |
+        Renames it (`filename`), replaces the file (JSON `content`, or a multipart part named
+        `file`), or both. A rename changes the Asset's `url`. New content counts against the plan's
+        per-file size and total storage (403 when over).
+      requestBody:
+        $ref: '#/components/requestBodies/AssetUpdate'
+      responses:
+        '200':
+          description: The updated Asset, without `content`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Asset'
+              examples:
+                updated:
+                  $ref: '#/components/examples/Asset'
+        '400':
+          $ref: '#/components/responses/BadUserInput'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+    delete:
+      operationId: deleteAsset
+      tags: [Assets]
+      summary: Delete an Asset
+      description: Deletes the Asset from storage. Unlike Pens and Collections, it does not go to a trash.
+      responses:
+        '204':
+          $ref: '#/components/responses/NoContent'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: CodePen API key (cp_user_… or cp_team_…)
+      description: |
+        `Authorization: Bearer <key>`. Generate the key in Settings → API on codepen.io. A User's key
+        starts with `cp_user_`; a Team's with `cp_team_`. Treat it like a password: it reads and
+        changes everything its owner has, private work included. A missing or invalid key, or the key
+        of a Team that is not PRO, answers 401.
+    apiKeyHeader:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: The same key in an `X-API-Key` header, for tooling where a Bearer header is awkward.
+
+  parameters:
+    PenId:
+      name: id
+      in: path
+      required: true
+      description: The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
+      schema:
+        $ref: '#/components/schemas/PenId'
+      example: 01a08738-73f0-7847-b6a8-5789d289c158
+    CollectionPenId:
+      name: pen_id
+      in: path
+      required: true
+      description: The Pen's cpid or hashid.
+      schema:
+        $ref: '#/components/schemas/PenId'
+      example: 01a08738-73f0-7847-b6a8-5789d289c158
+    VersionId:
+      name: id
+      in: path
+      required: true
+      description: The version's cpid.
+      schema:
+        $ref: '#/components/schemas/VersionId'
+      example: 01a08738-73f0-7848-b8bf-e8e7e91b1ae2
+    RestoreVersionId:
+      name: version_id
+      in: path
+      required: true
+      description: The cpid of the version to copy to the head.
+      schema:
+        $ref: '#/components/schemas/VersionId'
+      example: 01a08738-73f0-7848-b8bf-e8e7e91b1ae2
+    BuildId:
+      name: id
+      in: path
+      required: true
+      description: The ID of the version the build belongs to; a version and its build share one ID.
+      schema:
+        $ref: '#/components/schemas/VersionId'
+      example: 01a08853-f1ab-7967-812e-eda134bd9e61
+    CollectionId:
+      name: id
+      in: path
+      required: true
+      description: The Collection's hashid, the ID in `codepen.io/collection/<id>`.
+      schema:
+        $ref: '#/components/schemas/HashId'
+      example: QbaoZL
+    AssetId:
+      name: id
+      in: path
+      required: true
+      description: The Asset's hashid.
+      schema:
+        $ref: '#/components/schemas/HashId'
+      example: k7Ym0R
+    Username:
+      name: username
+      in: path
+      required: true
+      description: The collaborator's CodePen username.
+      schema:
+        type: string
+        minLength: 1
+      example: teammate
+    FilePath:
+      name: path
+      in: path
+      required: true
+      description: |
+        The file's full path inside the Pen without its leading `/`, slashes included and
+        unencoded: `/pens/{id}/files/src/app.js` addresses `/src/app.js`. On a delete, a directory
+        path addresses every file under it.
+      schema:
+        type: string
+        minLength: 1
+      example: src/app.js
+      x-codepen-multi-segment: true
+    ExpectedVersionId:
+      name: expected_version_id
+      in: query
+      required: false
+      description: |
+        The `saved_version.id` the change was based on. If the Pen's head has moved since, the write
+        is refused with 409 CONFLICT.
+      schema:
+        $ref: '#/components/schemas/VersionId'
+    Wait:
+      name: wait
+      in: query
+      required: false
+      description: |
+        Seconds to wait for the write's build before answering: 0 answers as soon as the files are
+        saved. The build carries on either way. May also be sent as `wait` in a JSON body; on a
+        multipart request, use this query parameter.
+      schema:
+        $ref: '#/components/schemas/Wait'
+    Page:
+      name: page
+      in: query
+      required: false
+      description: The page to return, starting at 1. Prefer following the `Link` header to building page URLs.
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PerPage:
+      name: per_page
+      in: query
+      required: false
+      description: Items per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 30
+    Sort:
+      name: sort
+      in: query
+      required: false
+      description: The field to sort by.
+      schema:
+        type: string
+        enum: [created, updated]
+        default: created
+    SortWithPopularity:
+      name: sort
+      in: query
+      required: false
+      description: The field to sort by.
+      schema:
+        type: string
+        enum: [created, updated, popularity]
+        default: created
+    Direction:
+      name: direction
+      in: query
+      required: false
+      description: Sort direction. The default puts the newest first.
+      schema:
+        type: string
+        enum: [asc, desc]
+        default: desc
+    AccessFilter:
+      name: access
+      in: query
+      required: false
+      description: Only Pens with one of these privacy settings. Comma-separated.
+      style: form
+      explode: false
+      schema:
+        type: array
+        minItems: 1
+        uniqueItems: true
+        items:
+          $ref: '#/components/schemas/PenAccess'
+      example: [Public, Private]
+    CollectionAccessFilter:
+      name: access
+      in: query
+      required: false
+      description: Only Collections with one of these privacy settings. Comma-separated.
+      style: form
+      explode: false
+      schema:
+        type: array
+        minItems: 1
+        uniqueItems: true
+        items:
+          $ref: '#/components/schemas/CollectionAccess'
+      example: [Public]
+    DeployedFilter:
+      name: deployed
+      in: query
+      required: false
+      description: Only deployed (`true`) or undeployed (`false`) Pens.
+      schema:
+        type: boolean
+    TemplateFilter:
+      name: template
+      in: query
+      required: false
+      description: Only templates (`true`) or non-templates (`false`).
+      schema:
+        type: boolean
+    ForksFilter:
+      name: forks
+      in: query
+      required: false
+      description: Whether to include forks, only forks, or no forks.
+      schema:
+        type: string
+        enum: [All, Forked, NotForked]
+        default: All
+    EditorFilter:
+      name: editor
+      in: query
+      required: false
+      description: Only Pens made in this editor.
+      schema:
+        $ref: '#/components/schemas/Editor'
+    TagsFilter:
+      name: tags
+      in: query
+      required: false
+      description: |
+        Pens tagged with any of these, comma-separated. Tags match the way they are saved:
+        lowercased, spaces as dashes, punctuation dropped (`Two Words!` is `two-words`).
+      style: form
+      explode: false
+      schema:
+        type: array
+        minItems: 1
+        maxItems: 3
+        items:
+          type: string
+          minLength: 1
+      example: [gsap, svg]
+    SearchTermFilter:
+      name: search_term
+      in: query
+      required: false
+      description: |
+        Matches the title or description, in the site's search syntax: every word has to appear,
+        `"quoted words"` stay together, and `-word` excludes one.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 200
+      example: cards
+
+  headers:
+    Link:
+      description: |
+        Links to the other pages, like GitHub's REST API. `rel="first"` and `rel="last"` are always
+        present (`last` counts under the request's own filters); `rel="prev"` is absent on the first
+        page and `rel="next"` on the last. Follow these URLs rather than building your own; they keep
+        the request's other query parameters.
+      required: true
+      schema:
+        type: string
+      example: >-
+        <https://api.codepen.io/v2/pens?page=1&per_page=30>; rel="prev",
+        <https://api.codepen.io/v2/pens?page=3&per_page=30>; rel="next",
+        <https://api.codepen.io/v2/pens?page=1&per_page=30>; rel="first",
+        <https://api.codepen.io/v2/pens?page=21&per_page=30>; rel="last"
+
+  responses:
+    NoContent:
+      description: Done. No body.
+    WriteResult:
+      description: |
+        The write was saved. `version` is the newest version it produced, with its source files;
+        `build` is that version's build, with the compiled output when it succeeded. A build that
+        `Failed` is still a 200: the files are saved and `build.errors` say why they do not build.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/WriteResult'
+          examples:
+            settled:
+              $ref: '#/components/examples/WriteResult'
+            notWaited:
+              $ref: '#/components/examples/WriteResultQueued'
+    BadUserInput:
+      description: |
+        BAD_USER_INPUT: an invalid path, setting, access level or role; empty content; both content
+        and an upload for one file; an empty multipart part; a password with an access other than
+        Protected.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/BadUserInputError'
+          examples:
+            error:
+              $ref: '#/components/examples/BadUserInputError'
+    Unauthenticated:
+      description: UNAUTHENTICATED. The key is missing or invalid, or its Team is not PRO. Do not retry; check the header or rotate the key.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UnauthenticatedError'
+          examples:
+            error:
+              $ref: '#/components/examples/UnauthenticatedError'
+    Forbidden:
+      description: |
+        FORBIDDEN: a write to a Classic Pen, or a plan limit (file count, file size, storage,
+        non-Public Pens or Collections, collaborator invites). When a bigger plan lifts the limit, the
+        message says so and links to pricing.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ForbiddenError'
+          examples:
+            classic:
+              $ref: '#/components/examples/ForbiddenClassicError'
+            plan:
+              $ref: '#/components/examples/ForbiddenPlanError'
+    NotFound:
+      description: |
+        NOT_FOUND: no Pen, Collection, version, build, file, Asset or deployment with that ID, or one
+        that is not the key owner's. Other people's work answers this too, even when public.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/NotFoundError'
+          examples:
+            error:
+              $ref: '#/components/examples/NotFoundError'
+    Conflict:
+      description: |
+        CONFLICT: `expected_version_id` is no longer the Pen's head. Read the files again and retry
+        from `current_version_id`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ConflictError'
+          examples:
+            error:
+              $ref: '#/components/examples/ConflictError'
+    RateLimited:
+      description: |
+        RATE_LIMITED: over the hourly request limit, the daily read limit, or today's allowance of
+        Pens or Collections. Wait for the hour or day to pass; retrying sooner only fails again.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RateLimitedError'
+          examples:
+            error:
+              $ref: '#/components/examples/RateLimitedError'
+    Internal:
+      description: INTERNAL. Something unexpected on CodePen's end; they are notified.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/InternalError'
+          examples:
+            error:
+              $ref: '#/components/examples/InternalError'
+
+  requestBodies:
+    PenCreate:
+      required: false
+      description: |
+        JSON, or a multipart form when uploading binary files. In the form, `pen` carries the JSON
+        body and every other part is one file, named by its path.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PenCreate'
+          examples:
+            withFiles:
+              $ref: '#/components/examples/PenCreateRequest'
+        multipart/form-data:
+          schema:
+            $ref: '#/components/schemas/PenCreateMultipart'
+          encoding:
+            pen:
+              contentType: application/json
+    PenUpdate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PenUpdate'
+          examples:
+            details:
+              $ref: '#/components/examples/PenUpdateRequest'
+            protect:
+              $ref: '#/components/examples/PenProtectRequest'
+    PenFork:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PenFork'
+          examples:
+            retitle:
+              $ref: '#/components/examples/PenForkRequest'
+    PenSettingsUpdate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PenSettingsUpdate'
+          examples:
+            tabs:
+              $ref: '#/components/examples/PenSettingsUpdateRequest'
+    FilesWrite:
+      required: true
+      description: |
+        JSON, or a multipart form when uploading binary files. In the form, `changes` carries the
+        JSON body; every other part is one file, named by its path, and is one more change applied
+        after those in `changes`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/FilesWrite'
+          examples:
+            moveWriteDelete:
+              $ref: '#/components/examples/FilesWriteRequest'
+        multipart/form-data:
+          schema:
+            $ref: '#/components/schemas/FilesWriteMultipart'
+          encoding:
+            changes:
+              contentType: application/json
+    FileWrite:
+      required: true
+      description: JSON `content` for text, or a multipart part named `file` for any file.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/FileWrite'
+          examples:
+            text:
+              $ref: '#/components/examples/FileWriteRequest'
+        multipart/form-data:
+          schema:
+            $ref: '#/components/schemas/FileWriteMultipart'
+    Deploy:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Deploy'
+          examples:
+            head:
+              summary: Deploy the saved head
+              value: {}
+    CollaboratorInvite:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CollaboratorInvite'
+          examples:
+            editor:
+              $ref: '#/components/examples/CollaboratorInviteRequest'
+    CollaboratorUpdate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CollaboratorUpdate'
+          examples:
+            viewer:
+              summary: Make a collaborator a Viewer
+              value:
+                role: Viewer
+    CollectionCreate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CollectionCreate'
+          examples:
+            public:
+              summary: A public Collection
+              value:
+                title: Demos
+                access: Public
+    CollectionUpdate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CollectionUpdate'
+          examples:
+            rename:
+              summary: Rename and describe
+              value:
+                title: Demos and experiments
+                description: Small things that worked.
+    AssetCreate:
+      required: true
+      description: A multipart part named `file`, or for text, JSON `filename` and `content`.
+      content:
+        multipart/form-data:
+          schema:
+            $ref: '#/components/schemas/AssetCreateMultipart'
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AssetCreate'
+          examples:
+            text:
+              summary: A text Asset as JSON
+              value:
+                filename: theme.css
+                content: 'body { color: red }'
+    AssetUpdate:
+      required: true
+      description: A new `filename`, new content, or both. Content goes as JSON `content` or a multipart part named `file`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AssetUpdate'
+          examples:
+            rename:
+              summary: Rename
+              value:
+                filename: theme-dark.css
+        multipart/form-data:
+          schema:
+            $ref: '#/components/schemas/AssetUpdateMultipart'
+
+  schemas:
+    # ── Scalars ────────────────────────────────────────────────────────────────────────────
+
+    PenId:
+      type: string
+      minLength: 1
+      description: A Pen's cpid (2.0 Pens, a UUID) or hashid (Classic Pens, the slug in its URL).
+      examples: [01a08738-73f0-7847-b6a8-5789d289c158, RNprEMR]
+    VersionId:
+      type: string
+      format: uuid
+      description: A version's cpid, which is also its build's ID.
+      examples: [01a08738-73f0-7848-b8bf-e8e7e91b1ae2]
+    FileId:
+      type: string
+      format: uuid
+      description: A file's stable ID. It survives renames and edits.
+      examples: [01a0884b-3177-71c3-a1c2-9452bfb9a3fb]
+    HashId:
+      type: string
+      pattern: '^[A-Za-z0-9]+$'
+      description: A short alphanumeric ID, as used for Collections, Assets and deployments.
+      examples: [QbaoZL]
+    Timestamp:
+      type: string
+      format: date-time
+      description: RFC 3339 in UTC. The fraction of a second varies in length and may be absent.
+      examples: ['2026-09-09T22:23:39Z', '2026-10-16T00:57:11.38331Z']
+    Wait:
+      type: integer
+      minimum: 0
+      maximum: 75
+      default: 45
+      description: Seconds a write waits for its build before answering; 0 answers as soon as the files are saved.
+    Tags:
+      type: array
+      description: Tags, saved lowercased with spaces as dashes and punctuation dropped.
+      items:
+        type: string
+      examples: [[api, demo]]
+    Password:
+      type: string
+      minLength: 8
+      writeOnly: true
+      description: |
+        The password for a Protected Pen, at least 8 characters. Write-only. Sent with any access
+        but `Protected` (and not on a Pen that already is) it answers 400.
+    AssetFilename:
+      type: string
+      minLength: 1
+      pattern: "^[^/\\\\]+$"
+      description: Unique among your Assets; cannot contain `/` or `\`.
+      examples: [logo.png]
+    BinaryPart:
+      type: string
+      format: binary
+      contentMediaType: application/octet-stream
+      description: A file uploaded as one part of a multipart form. At most 30 MB per file, 120 MB per request.
+
+    # ── Enums ──────────────────────────────────────────────────────────────────────────────
+
+    PenAccess:
+      type: string
+      enum: [Public, Private, Protected, Collaborators]
+      description: |
+        `Public`: listed on the site. `Private`: unlisted; anyone with the link can view.
+        `Protected`: private, and viewing needs a password. `Collaborators`: private, and only
+        collaborators can view. Anything but Public needs PRO. Accepted in any case.
+    CollectionAccess:
+      type: string
+      enum: [Public, Private]
+      description: Collections are Public or Private. Private needs PRO. Accepted in any case.
+    Editor:
+      type: string
+      enum: [V2, Classic]
+      description: The editor that made the Pen. `Classic` Pens are read-only through the API.
+    Role:
+      type: string
+      enum: [Owner, Editor, Viewer]
+      description: A collaborator's role on a Pen.
+    InviteRole:
+      type: string
+      enum: [Editor, Viewer]
+      description: A role that can be given to a collaborator. Accepted in any case.
+    IndentWith:
+      type: string
+      enum: [spaces, tabs]
+    BuildStatus:
+      type: string
+      enum: [Queued, Running, Success, Failed, Canceled]
+      description: |
+        `Queued`, `Running`: not done, keep polling. `Success`: done, with output files. `Failed`:
+        done with errors; the files are saved and nothing is retried. `Canceled`: the compiler asked
+        for changes; follow `next_id` if set, otherwise `patches` lists what is still required.
+    DiagnosticType:
+      type: string
+      enum: [Error, Warning, Information, Hint]
+    DiagnosticScope:
+      type: string
+      enum: [Build, BuildStep, File]
+      description: '`Build`: about the whole build. `BuildStep`: about one step of it. `File`: about one file.'
+    PatchType:
+      type: string
+      enum: [create, update, delete]
+    ErrorCode:
+      type: string
+      enum:
+        [UNAUTHENTICATED, RATE_LIMITED, NOT_FOUND, FORBIDDEN, BAD_USER_INPUT, CONFLICT, INTERNAL]
+      description: Shared with the GraphQL API, where it is `errors[].extensions.code`.
+
+    # ── Pens ───────────────────────────────────────────────────────────────────────────────
+
+    PenBase:
+      type: object
+      description: The fields every Pen response has. Not used on its own; see Pen and PenWithBuild.
+      required:
+        [
+          id,
+          title,
+          description,
+          tags,
+          access,
+          password,
+          template,
+          popularity,
+          loves_count,
+          views_count,
+          editor,
+          created_at,
+          updated_at,
+          urls,
+          screenshot_urls,
+          saved_version,
+          deployment,
+          settings,
+        ]
+      properties:
+        id:
+          $ref: '#/components/schemas/PenId'
+        title:
+          type: string
+        description:
+          type: string
+        tags:
+          $ref: '#/components/schemas/Tags'
+        access:
+          $ref: '#/components/schemas/PenAccess'
+        password:
+          type: 'null'
+          description: Write-only, so always null.
+        template:
+          type: boolean
+          description: Whether the Pen is a template.
+        popularity:
+          type: integer
+          minimum: 0
+        loves_count:
+          type: integer
+          minimum: 0
+          description: How many times the Pen has been loved.
+          x-codepen-changelog: https://codepen.io/changelog#2026-10-16
+        views_count:
+          type: integer
+          minimum: 0
+          description: How many times the Pen has been viewed.
+          x-codepen-changelog: https://codepen.io/changelog#2026-10-16
+        editor:
+          $ref: '#/components/schemas/Editor'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+        urls:
+          $ref: '#/components/schemas/PenUrls'
+        screenshot_urls:
+          description: Null for a 2.0 Pen with no saved version.
+          oneOf:
+            - $ref: '#/components/schemas/ScreenshotUrls'
+            - type: 'null'
+        saved_version:
+          description: The saved head, without files. Null for Classic Pens.
+          oneOf:
+            - $ref: '#/components/schemas/Version'
+            - type: 'null'
+        deployment:
+          description: The current deployment, or null when the Pen is not deployed.
+          oneOf:
+            - $ref: '#/components/schemas/Deployment'
+            - type: 'null'
+        settings:
+          $ref: '#/components/schemas/PenSettings'
+    Pen:
+      description: A Pen. `id` is the cpid for 2.0 Pens and the hashid for Classic Pens.
+      allOf:
+        - $ref: '#/components/schemas/PenBase'
+      unevaluatedProperties: false
+    PenWithBuild:
+      description: A Pen just made by a create or fork, with the build of its newest version.
+      allOf:
+        - $ref: '#/components/schemas/PenBase'
+        - type: object
+          required: [build]
+          properties:
+            build:
+              $ref: '#/components/schemas/BuildDetail'
+      unevaluatedProperties: false
+    PenUrls:
+      type: object
+      required: [editor, preview]
+      properties:
+        editor:
+          type: string
+          format: uri
+          description: The Pen in the editor.
+        preview:
+          type: string
+          format: uri
+          description: |
+            The saved head rendered on its own. 404s for Protected and Collaborators Pens, which need
+            a browser session. A deployed Pen's public URL is `deployment.url`.
+      additionalProperties: false
+    ScreenshotUrls:
+      type: object
+      description: |
+        JPEG screenshots of the saved head, 16:9, by width. Rendered on first request, so the first
+        fetch can take a few seconds. Protected and Collaborators Pens answer a not-found image.
+      required: [small, medium, large, xlarge]
+      properties:
+        small:
+          type: string
+          format: uri
+          description: 320 pixels wide.
+        medium:
+          type: string
+          format: uri
+          description: 512 pixels wide.
+        large:
+          type: string
+          format: uri
+          description: 800 pixels wide.
+        xlarge:
+          type: string
+          format: uri
+          description: 1280 pixels wide.
+      additionalProperties: false
+    PenSettingsFields:
+      type: object
+      description: The editor settings' fields. Not used on its own; see PenSettings and PenSettingsUpdate.
+      properties:
+        auto_deploy:
+          type: boolean
+          description: Deploy every new saved version automatically.
+        auto_run:
+          type: boolean
+          description: Rerun the preview as code changes.
+        auto_save:
+          type: boolean
+          description: Save in the editor as you type.
+        indent_with:
+          $ref: '#/components/schemas/IndentWith'
+        tab_size:
+          type: integer
+          minimum: 1
+    PenSettings:
+      description: A Pen's editor settings.
+      allOf:
+        - $ref: '#/components/schemas/PenSettingsFields'
+      required: [auto_deploy, auto_run, auto_save, indent_with, tab_size]
+      unevaluatedProperties: false
+    Deployment:
+      type: object
+      required: [id, version_id, url, custom_domains, created_at, updated_at]
+      properties:
+        id:
+          $ref: '#/components/schemas/HashId'
+        version_id:
+          $ref: '#/components/schemas/VersionId'
+        url:
+          type: string
+          format: uri
+          description: The deployed Pen's public URL on `codepen.app`.
+        custom_domains:
+          type: array
+          description: Custom domains serving the deployment.
+          items:
+            type: string
+          x-codepen-unverified: true
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+      additionalProperties: false
+
+    # ── Files ──────────────────────────────────────────────────────────────────────────────
+
+    File:
+      type: object
+      description: |
+        A source file (in a version) or an output file (in a build). Output files' `url` is under
+        the version's `preview_url`.
+      required: [id, path, name, content_hash, is_binary, content, url]
+      properties:
+        id:
+          $ref: '#/components/schemas/FileId'
+        path:
+          type: string
+          pattern: '^/'
+          description: The full path, starting with `/`.
+          examples: [/src/app.js]
+        name:
+          type: string
+          description: The last segment of `path`.
+          examples: [app.js]
+        content_hash:
+          type: string
+          description: Derived by the API; never sent.
+        is_binary:
+          type: boolean
+        content:
+          type: [string, 'null']
+          description: The text. Null for binary files, whose bytes are at `url`.
+        url:
+          type: [string, 'null']
+          format: uri
+          description: Serves the file raw. Null for a Classic Pen's files, which are built on read.
+      additionalProperties: false
+
+    # ── Versions ───────────────────────────────────────────────────────────────────────────
+
+    VersionBase:
+      type: object
+      description: The fields every version has. Not used on its own; see Version and VersionDetail.
+      required: [id, pen_id, hash, created_at, deployed, preview_url]
+      properties:
+        id:
+          $ref: '#/components/schemas/VersionId'
+        pen_id:
+          $ref: '#/components/schemas/PenId'
+        hash:
+          type: string
+          description: Derived by the API from the version's files.
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        deployed:
+          type: boolean
+          description: Whether this version is the deployed one.
+        preview_url:
+          type: string
+          format: uri
+          description: Serves this version's build output.
+    Version:
+      description: A saved version without files, as in lists and `saved_version`.
+      allOf:
+        - $ref: '#/components/schemas/VersionBase'
+        - type: object
+          required: [build]
+          properties:
+            build:
+              $ref: '#/components/schemas/Build'
+      unevaluatedProperties: false
+    VersionDetail:
+      description: A version with its source files, and its build with the compiled output.
+      allOf:
+        - $ref: '#/components/schemas/VersionBase'
+        - type: object
+          required: [build, files]
+          properties:
+            build:
+              $ref: '#/components/schemas/BuildDetail'
+            files:
+              type: array
+              description: The version's source files.
+              items:
+                $ref: '#/components/schemas/File'
+      unevaluatedProperties: false
+
+    # ── Builds ─────────────────────────────────────────────────────────────────────────────
+
+    BuildBase:
+      type: object
+      description: The fields every build has. Not used on its own; see Build and BuildDetail.
+      required:
+        [
+          id,
+          status,
+          started_at,
+          ended_at,
+          rounds,
+          diagnostics,
+          errors,
+          applied_patches,
+          patches,
+          version_id,
+          next_id,
+          previous_id,
+        ]
+      properties:
+        id:
+          $ref: '#/components/schemas/VersionId'
+        status:
+          $ref: '#/components/schemas/BuildStatus'
+        started_at:
+          description: Null before the build starts, and on some older builds.
+          oneOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+        ended_at:
+          description: Null until the build ends, and on some older builds.
+          oneOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+        rounds:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: Compiler builds it took to get here, counted from the version written. 1 when no changes were needed.
+        diagnostics:
+          type: array
+          description: Everything the final build reported.
+          items:
+            $ref: '#/components/schemas/Diagnostic'
+        errors:
+          type: array
+          description: The diagnostics whose type is Error, as a shortcut.
+          items:
+            $ref: '#/components/schemas/Diagnostic'
+        applied_patches:
+          type: array
+          description: Changes the API made to the files for the compiler. The version's files already include them.
+          items:
+            $ref: '#/components/schemas/Patch'
+        patches:
+          type: array
+          description: Changes the compiler still requires. Empty unless status is Canceled.
+          items:
+            $ref: '#/components/schemas/Patch'
+        version_id:
+          description: The version the build belongs to. Null while that version is still being put together.
+          oneOf:
+            - $ref: '#/components/schemas/VersionId'
+            - type: 'null'
+        next_id:
+          description: Set on a Canceled build while the API applies the compiler's changes; poll that build next.
+          oneOf:
+            - $ref: '#/components/schemas/VersionId'
+            - type: 'null'
+        previous_id:
+          description: On the patched version's build, the version that was written.
+          oneOf:
+            - $ref: '#/components/schemas/VersionId'
+            - type: 'null'
+    Build:
+      description: A build without its output files, as in lists and `saved_version`.
+      allOf:
+        - $ref: '#/components/schemas/BuildBase'
+      unevaluatedProperties: false
+    BuildDetail:
+      description: A build with its compiled output, which is present only when the build succeeded.
+      allOf:
+        - $ref: '#/components/schemas/BuildBase'
+        - type: object
+          properties:
+            files:
+              type: array
+              description: The compiled output. Present only when status is Success.
+              items:
+                $ref: '#/components/schemas/File'
+      unevaluatedProperties: false
+    Diagnostic:
+      type: object
+      required: [type, scope, message, code, url, block_name, path, file_id, range]
+      properties:
+        type:
+          $ref: '#/components/schemas/DiagnosticType'
+        scope:
+          $ref: '#/components/schemas/DiagnosticScope'
+        message:
+          type: string
+        code:
+          type: [string, 'null']
+          description: The tool's own diagnostic code, such as a TypeScript error number.
+          examples: ['2347']
+        url:
+          type: [string, 'null']
+          format: uri
+        block_name:
+          type: [string, 'null']
+          description: The compiler block that reported it.
+          examples: [typescript-5]
+        path:
+          type: [string, 'null']
+          description: |
+            The Pen file it is about. A diagnostic about something outside the Pen's files can carry
+            a compiler-side path instead, such as `/cpfs/pens/…/src`.
+        file_id:
+          description: |
+            The file it is about, or null. A diagnostic about something outside the Pen's files (for
+            example a `tsconfig.json` option the compiler rejects) can carry an empty string.
+          oneOf:
+            - $ref: '#/components/schemas/FileId'
+            - type: 'null'
+            - const: ''
+              x-codepen-undocumented: true
+        range:
+          oneOf:
+            - $ref: '#/components/schemas/DiagnosticRange'
+            - type: 'null'
+      additionalProperties: false
+    DiagnosticRange:
+      type: object
+      required: [start, end]
+      properties:
+        start:
+          $ref: '#/components/schemas/DiagnosticPosition'
+        end:
+          oneOf:
+            - $ref: '#/components/schemas/DiagnosticPosition'
+            - type: 'null'
+      additionalProperties: false
+    DiagnosticPosition:
+      type: object
+      required: [line, column]
+      properties:
+        line:
+          type: integer
+          minimum: 1
+        column:
+          type: integer
+          minimum: 1
+        position:
+          type: integer
+          minimum: 0
+          description: Character offset into the file.
+          x-codepen-undocumented: true
+      additionalProperties: false
+    Patch:
+      type: object
+      description: |
+        A change to the source files. `update` and `delete` carry the `file_id` of the file they
+        change; `delete` has no content.
+      required: [type, path, file_id]
+      properties:
+        type:
+          $ref: '#/components/schemas/PatchType'
+        path:
+          type: string
+        file_id:
+          oneOf:
+            - $ref: '#/components/schemas/FileId'
+            - type: 'null'
+        content:
+          type: [string, 'null']
+      additionalProperties: false
+      x-codepen-unverified: true
+
+    WriteResult:
+      type: object
+      description: The answer to every write of a Pen's files.
+      required: [pen, version, build]
+      properties:
+        pen:
+          $ref: '#/components/schemas/Pen'
+        version:
+          $ref: '#/components/schemas/VersionDetail'
+        build:
+          $ref: '#/components/schemas/BuildDetail'
+      additionalProperties: false
+
+    # ── Collaborators ──────────────────────────────────────────────────────────────────────
+
+    Collaborator:
+      type: object
+      required: [username, name, role, is_team_member]
+      properties:
+        username:
+          type: string
+        name:
+          type: string
+          description: Display name.
+        role:
+          $ref: '#/components/schemas/Role'
+        is_team_member:
+          type: boolean
+      additionalProperties: false
+    CollaboratorList:
+      type: array
+      items:
+        $ref: '#/components/schemas/Collaborator'
+    Invite:
+      type: object
+      description: A pending invitation. One of `email` and `username` is set.
+      required: [id, email, username, role, created_at]
+      properties:
+        id:
+          type: string
+        email:
+          type: [string, 'null']
+          format: email
+        username:
+          type: [string, 'null']
+        role:
+          $ref: '#/components/schemas/InviteRole'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+      additionalProperties: false
+      x-codepen-unverified: true
+    InviteList:
+      type: array
+      items:
+        $ref: '#/components/schemas/Invite'
+
+    # ── Collections ────────────────────────────────────────────────────────────────────────
+
+    Collection:
+      type: object
+      required:
+        [id, title, description, access, items_count, popularity, created_at, updated_at, url]
+      properties:
+        id:
+          $ref: '#/components/schemas/HashId'
+        title:
+          type: string
+        description:
+          type: string
+        access:
+          $ref: '#/components/schemas/CollectionAccess'
+        items_count:
+          type: integer
+          minimum: 0
+          description: How many Pens the Collection holds.
+        popularity:
+          type: integer
+          minimum: 0
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+        url:
+          type: string
+          format: uri
+      additionalProperties: false
+
+    # ── Assets ─────────────────────────────────────────────────────────────────────────────
+
+    AssetBase:
+      type: object
+      description: The fields every Asset has. Not used on its own; see Asset and AssetDetail.
+      required: [id, filename, url, is_binary, created_at, updated_at]
+      properties:
+        id:
+          $ref: '#/components/schemas/HashId'
+        filename:
+          $ref: '#/components/schemas/AssetFilename'
+        url:
+          type: string
+          format: uri
+          description: Where the file is served. Changes when the Asset is renamed.
+        is_binary:
+          type: boolean
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+    Asset:
+      description: An Asset without content, as in lists and write responses.
+      allOf:
+        - $ref: '#/components/schemas/AssetBase'
+      unevaluatedProperties: false
+    AssetDetail:
+      description: An Asset with `content` for text files.
+      allOf:
+        - $ref: '#/components/schemas/AssetBase'
+        - type: object
+          required: [content]
+          properties:
+            content:
+              type: [string, 'null']
+              description: The text of a text Asset; null for binary ones.
+      unevaluatedProperties: false
+
+    # ── Errors ─────────────────────────────────────────────────────────────────────────────
+
+    Error:
+      type: object
+      description: Every error body. Not used on its own; each status has its own schema fixing `code`.
+      required: [message, code]
+      properties:
+        message:
+          type: string
+          description: What went wrong. For plan limits, names the limit and links to pricing when a bigger plan lifts it.
+        code:
+          $ref: '#/components/schemas/ErrorCode'
+    BadUserInputError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - required: [code]
+          properties:
+            code:
+              const: BAD_USER_INPUT
+      unevaluatedProperties: false
+    UnauthenticatedError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - required: [code]
+          properties:
+            code:
+              const: UNAUTHENTICATED
+      unevaluatedProperties: false
+    ForbiddenError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - required: [code]
+          properties:
+            code:
+              const: FORBIDDEN
+      unevaluatedProperties: false
+    NotFoundError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - required: [code]
+          properties:
+            code:
+              const: NOT_FOUND
+      unevaluatedProperties: false
+    ConflictError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          required: [code, expected_version_id, current_version_id]
+          properties:
+            code:
+              const: CONFLICT
+            expected_version_id:
+              $ref: '#/components/schemas/VersionId'
+            current_version_id:
+              $ref: '#/components/schemas/VersionId'
+      unevaluatedProperties: false
+    RateLimitedError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - required: [code]
+          properties:
+            code:
+              const: RATE_LIMITED
+      unevaluatedProperties: false
+    InternalError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - required: [code]
+          properties:
+            code:
+              const: INTERNAL
+      unevaluatedProperties: false
+
+    # ── Requests ───────────────────────────────────────────────────────────────────────────
+
+    PenDetailsInput:
+      type: object
+      description: Details shared by creates, forks and updates. Not used on its own.
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        tags:
+          $ref: '#/components/schemas/Tags'
+        access:
+          $ref: '#/components/schemas/PenAccess'
+        password:
+          $ref: '#/components/schemas/Password'
+    PenCreate:
+      description: |
+        A new 2.0 Pen. `title` defaults to "Untitled", `access` to the account's default privacy,
+        and `files` to starter files.
+      allOf:
+        - $ref: '#/components/schemas/PenDetailsInput'
+        - type: object
+          properties:
+            files:
+              type: array
+              description: The Pen's initial text files. Binary files go as multipart parts.
+              items:
+                $ref: '#/components/schemas/FileWriteByPath'
+            wait:
+              $ref: '#/components/schemas/Wait'
+      unevaluatedProperties: false
+    PenCreateMultipart:
+      type: object
+      description: '`pen` is the JSON body; every other part is one file, named by its path (for example `/img/logo.png`).'
+      properties:
+        pen:
+          $ref: '#/components/schemas/PenCreate'
+      additionalProperties:
+        $ref: '#/components/schemas/BinaryPart'
+    PenFork:
+      description: Overrides for the copy. Anything left out keeps the original's value.
+      allOf:
+        - $ref: '#/components/schemas/PenDetailsInput'
+        - type: object
+          properties:
+            wait:
+              $ref: '#/components/schemas/Wait'
+      unevaluatedProperties: false
+    PenUpdate:
+      description: The details to change. Only the keys given change; `tags` replaces the whole list.
+      allOf:
+        - $ref: '#/components/schemas/PenDetailsInput'
+        - type: object
+          properties:
+            template:
+              type: boolean
+              description: Whether the Pen is a template.
+      minProperties: 1
+      unevaluatedProperties: false
+    PenSettingsUpdate:
+      description: The settings to change.
+      allOf:
+        - $ref: '#/components/schemas/PenSettingsFields'
+      minProperties: 1
+      unevaluatedProperties: false
+
+    FileChange:
+      description: |
+        One change in a multi-file write, addressing a file by `path` or by `id`. Changes apply in
+        order. Paths get a leading `/` if missing.
+      oneOf:
+        - $ref: '#/components/schemas/FileWriteByPath'
+        - $ref: '#/components/schemas/FileWriteById'
+        - $ref: '#/components/schemas/FileMoveById'
+        - $ref: '#/components/schemas/FileDeleteByPath'
+        - $ref: '#/components/schemas/FileDeleteById'
+    FileWriteByPath:
+      type: object
+      description: Writes the file at `path`, creating it if needed.
+      required: [path, content]
+      properties:
+        path:
+          type: string
+          minLength: 1
+          examples: [index.html]
+        content:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    FileWriteById:
+      type: object
+      description: Writes the file with that ID, wherever it is.
+      required: [id, content]
+      properties:
+        id:
+          $ref: '#/components/schemas/FileId'
+        content:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    FileMoveById:
+      type: object
+      description: Moves the file with that ID to `path`, keeping its ID. With `content`, writes it there too.
+      required: [id, path]
+      properties:
+        id:
+          $ref: '#/components/schemas/FileId'
+        path:
+          type: string
+          minLength: 1
+        content:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    FileDeleteByPath:
+      type: object
+      description: Deletes the file at `path`, or every file under it when it is a directory.
+      required: [path, delete]
+      properties:
+        path:
+          type: string
+          minLength: 1
+        delete:
+          const: true
+      additionalProperties: false
+    FileDeleteById:
+      type: object
+      description: Deletes the file with that ID.
+      required: [id, delete]
+      properties:
+        id:
+          $ref: '#/components/schemas/FileId'
+        delete:
+          const: true
+      additionalProperties: false
+    FilesWrite:
+      type: object
+      required: [files]
+      properties:
+        expected_version_id:
+          $ref: '#/components/schemas/VersionId'
+        wait:
+          $ref: '#/components/schemas/Wait'
+        files:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/FileChange'
+      additionalProperties: false
+    FilesWriteMultipart:
+      type: object
+      description: |
+        `changes` is the JSON body. Every other part is one file, named by its path, and is one more
+        change applied after those in `changes`.
+      properties:
+        changes:
+          $ref: '#/components/schemas/FilesWrite'
+        expected_version_id:
+          $ref: '#/components/schemas/VersionId'
+      additionalProperties:
+        $ref: '#/components/schemas/BinaryPart'
+    FileWrite:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          minLength: 1
+          description: The file's text.
+        expected_version_id:
+          $ref: '#/components/schemas/VersionId'
+        wait:
+          $ref: '#/components/schemas/Wait'
+      additionalProperties: false
+    FileWriteMultipart:
+      type: object
+      required: [file]
+      properties:
+        file:
+          $ref: '#/components/schemas/BinaryPart'
+        expected_version_id:
+          $ref: '#/components/schemas/VersionId'
+      additionalProperties: false
+
+    Deploy:
+      type: object
+      properties:
+        version_id:
+          description: The version to deploy. Defaults to the saved head.
+          allOf:
+            - $ref: '#/components/schemas/VersionId'
+      additionalProperties: false
+
+    CollaboratorInvite:
+      type: object
+      required: [email_or_username, role]
+      properties:
+        email_or_username:
+          type: string
+          minLength: 1
+        role:
+          $ref: '#/components/schemas/InviteRole'
+      additionalProperties: false
+    CollaboratorUpdate:
+      type: object
+      required: [role]
+      properties:
+        role:
+          $ref: '#/components/schemas/InviteRole'
+      additionalProperties: false
+
+    CollectionDetailsInput:
+      type: object
+      description: Details shared by Collection creates and updates. Not used on its own.
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        access:
+          $ref: '#/components/schemas/CollectionAccess'
+    CollectionCreate:
+      allOf:
+        - $ref: '#/components/schemas/CollectionDetailsInput'
+      unevaluatedProperties: false
+    CollectionUpdate:
+      description: Only the keys given change.
+      allOf:
+        - $ref: '#/components/schemas/CollectionDetailsInput'
+      minProperties: 1
+      unevaluatedProperties: false
+
+    AssetCreate:
+      type: object
+      description: A text Asset sent as JSON.
+      required: [filename, content]
+      properties:
+        filename:
+          $ref: '#/components/schemas/AssetFilename'
+        content:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    AssetCreateMultipart:
+      type: object
+      required: [file]
+      properties:
+        file:
+          $ref: '#/components/schemas/BinaryPart'
+        filename:
+          description: Defaults to the part's own filename.
+          allOf:
+            - $ref: '#/components/schemas/AssetFilename'
+      additionalProperties: false
+    AssetUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        filename:
+          $ref: '#/components/schemas/AssetFilename'
+        content:
+          type: string
+          minLength: 1
+          description: New text content.
+      additionalProperties: false
+    AssetUpdateMultipart:
+      type: object
+      minProperties: 1
+      properties:
+        file:
+          $ref: '#/components/schemas/BinaryPart'
+        filename:
+          $ref: '#/components/schemas/AssetFilename'
+      additionalProperties: false
+
+  # Example objects are written once and reused with YAML anchors (&name) and aliases (*name),
+  # so larger examples are assembled from smaller ones rather than repeated. Anchors must come
+  # before their aliases, so the building blocks are listed first. IDs follow CodePen's docs.
+  examples:
+    PenSettings:
+      summary: Default editor settings
+      value: &settings
+        auto_deploy: false
+        auto_run: true
+        auto_save: true
+        indent_with: spaces
+        tab_size: 2
+    FileText:
+      summary: A text source file
+      value: &fileApp
+        id: 01a0884b-3177-71c3-a1c2-9452bfb9a3fb
+        path: /src/app.js
+        name: app.js
+        content_hash: 71c0d5be0c3f4a8e7b1d9e2f6a3c5b8d0e4f7a1b2c3d4e5f6a7b8c9d0e1f2a3b
+        is_binary: false
+        content: console.log("moved")
+        url: https://01a08738-73f0-7847-b6a8-5789d289c158.codepenusercontent.com/src/app.js
+    FileBinary:
+      summary: A binary source file; its bytes are at url
+      value:
+        id: 01a08853-f1aa-7966-82f1-6d37d7140e34
+        path: /img/logo.png
+        name: logo.png
+        content_hash: 3c1b9a7e5d2f4c6b8a0e1d3f5b7c9a2e4d6f8b0c1a3e5d7f9b2c4a6e8d0f1b3c
+        is_binary: true
+        content: null
+        url: https://01a08738-73f0-7847-b6a8-5789d289c158.codepenusercontent.com/img/logo.png
+    FileList:
+      summary: The saved head's source files
+      value: &sourceFiles
+        - id: 01a08738-73f1-7a10-9c42-1f2d3e4b5a60
+          path: /index.html
+          name: index.html
+          content_hash: 9f2e4b6d8a0c1e3f5b7d9a2c4e6f8b0d1a3c5e7f9b2d4a6c8e0f1b3d5a7c9e2f
+          is_binary: false
+          content: <script src="src/app.js"></script>
+          url: https://01a08738-73f0-7847-b6a8-5789d289c158.codepenusercontent.com/index.html
+        - *fileApp
+    BuildSuccess:
+      summary: A successful build with its compiled output
+      value: &buildSuccessDetail
+        id: 01a08853-f1ab-7967-812e-eda134bd9e61
+        status: Success
+        started_at: '2026-09-09T22:25:02Z'
+        ended_at: '2026-09-09T22:25:05Z'
+        rounds: 1
+        diagnostics: []
+        errors: []
+        applied_patches: []
+        patches: []
+        files:
+          - id: 01a08853-f1ac-7a01-8b3d-2c4e6f8a0b1d
+            path: /index.html
+            name: index.html
+            content_hash: 9f2e4b6d8a0c1e3f5b7d9a2c4e6f8b0d1a3c5e7f9b2d4a6c8e0f1b3d5a7c9e2f
+            is_binary: false
+            content: <script src="src/app.js"></script>
+            url: https://pv-01a08853-f1ab-7967-812e-eda134bd9e61.codepen.dev/index.html
+          - id: 01a08853-f1ac-7a02-9c4e-3d5f7a9b1c2e
+            path: /src/app.js
+            name: app.js
+            content_hash: 71c0d5be0c3f4a8e7b1d9e2f6a3c5b8d0e4f7a1b2c3d4e5f6a7b8c9d0e1f2a3b
+            is_binary: false
+            content: console.log("moved")
+            url: https://pv-01a08853-f1ab-7967-812e-eda134bd9e61.codepen.dev/src/app.js
+        version_id: 01a08853-f1ab-7967-812e-eda134bd9e61
+        next_id: null
+        previous_id: null
+    VersionList:
+      summary: Saved versions, newest first, without files
+      value:
+        - &versionHead
+          id: 01a08853-f1ab-7967-812e-eda134bd9e61
+          pen_id: 01a08738-73f0-7847-b6a8-5789d289c158
+          hash: 5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e
+          created_at: '2026-09-09T22:25:02Z'
+          deployed: false
+          build:
+            id: 01a08853-f1ab-7967-812e-eda134bd9e61
+            status: Success
+            started_at: '2026-09-09T22:25:02Z'
+            ended_at: '2026-09-09T22:25:05Z'
+            rounds: 1
+            diagnostics: []
+            errors: []
+            applied_patches: []
+            patches: []
+            version_id: 01a08853-f1ab-7967-812e-eda134bd9e61
+            next_id: null
+            previous_id: null
+          preview_url: https://pv-01a08853-f1ab-7967-812e-eda134bd9e61.codepen.dev/
+        - id: 01a08738-73f0-7848-b8bf-e8e7e91b1ae2
+          pen_id: 01a08738-73f0-7847-b6a8-5789d289c158
+          hash: acb9e1d3f5a7c9b2d4e6f8a0c1e3b5d7f9a2c4e6b8d0f1a3c5e7b9d2f4a6c8e0
+          created_at: '2026-09-09T22:23:39Z'
+          deployed: true
+          build:
+            id: 01a08738-73f0-7848-b8bf-e8e7e91b1ae2
+            status: Success
+            started_at: '2026-09-09T22:23:40Z'
+            ended_at: '2026-09-09T22:23:43Z'
+            rounds: 1
+            diagnostics: []
+            errors: []
+            applied_patches: []
+            patches: []
+            version_id: 01a08738-73f0-7848-b8bf-e8e7e91b1ae2
+            next_id: null
+            previous_id: null
+          preview_url: https://pv-01a08738-73f0-7848-b8bf-e8e7e91b1ae2.codepen.dev/
+    VersionDetail:
+      summary: A version with its source files and its build's output
+      value: &versionDetail
+        id: 01a08853-f1ab-7967-812e-eda134bd9e61
+        pen_id: 01a08738-73f0-7847-b6a8-5789d289c158
+        hash: 5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e
+        created_at: '2026-09-09T22:25:02Z'
+        deployed: false
+        build: *buildSuccessDetail
+        preview_url: https://pv-01a08853-f1ab-7967-812e-eda134bd9e61.codepen.dev/
+        files: *sourceFiles
+    Deployment:
+      summary: The live deployment of an older version
+      value: &deployment
+        id: kRxnnr
+        version_id: 01a08738-73f0-7848-b8bf-e8e7e91b1ae2
+        url: https://cheerful-term-baboon.codepen.app/
+        custom_domains: []
+        created_at: '2026-09-09T22:23:40Z'
+        updated_at: '2026-09-09T22:23:40Z'
+    Pen:
+      summary: A 2.0 Pen with a deployment
+      value: &pen
+        id: 01a08738-73f0-7847-b6a8-5789d289c158
+        title: Hello
+        description: Made with the API
+        tags: [api, demo]
+        access: Private
+        password: null
+        template: false
+        popularity: 12
+        loves_count: 3
+        views_count: 41
+        editor: V2
+        created_at: '2026-09-09T22:23:39Z'
+        updated_at: '2026-09-09T22:25:02Z'
+        urls:
+          editor: https://codepen.io/editor/yourname/pen/01a08738-73f0-7847-b6a8-5789d289c158
+          preview: https://01a08738-73f0-7847-b6a8-5789d289c158.codepen.dev/
+        screenshot_urls:
+          small: https://01a08738-73f0-7847-b6a8-5789d289c158.codepen.dev/.codepen/screenshots/5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e/320.jpg
+          medium: https://01a08738-73f0-7847-b6a8-5789d289c158.codepen.dev/.codepen/screenshots/5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e/512.jpg
+          large: https://01a08738-73f0-7847-b6a8-5789d289c158.codepen.dev/.codepen/screenshots/5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e/800.jpg
+          xlarge: https://01a08738-73f0-7847-b6a8-5789d289c158.codepen.dev/.codepen/screenshots/5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e/1280.jpg
+        saved_version: *versionHead
+        deployment: *deployment
+        settings: *settings
+    ClassicPen:
+      summary: A Classic Pen, read-only, with no versions
+      value: &classicPen
+        id: RNprEMR
+        title: Sketchpad
+        description: Canvas drawing app.
+        tags: [canvas, drawing]
+        access: Public
+        password: null
+        template: false
+        popularity: 6
+        loves_count: 1
+        views_count: 13
+        editor: Classic
+        created_at: '2026-09-05T11:17:51.120816Z'
+        updated_at: '2026-09-05T14:26:55.544432Z'
+        urls:
+          editor: https://codepen.io/yourname/pen/RNprEMR
+          preview: https://cdpn.io/yourname/fullcpgrid/RNprEMR/
+        screenshot_urls:
+          small: https://shots.codepen.io/yourname/pen/RNprEMR-320.jpg?version=1788618415
+          medium: https://shots.codepen.io/yourname/pen/RNprEMR-512.jpg?version=1788618415
+          large: https://shots.codepen.io/yourname/pen/RNprEMR-800.jpg?version=1788618415
+          xlarge: https://shots.codepen.io/yourname/pen/RNprEMR-1280.jpg?version=1788618415
+        saved_version: null
+        deployment: null
+        settings: *settings
+    PenList:
+      summary: One page holding a 2.0 Pen and a Classic Pen
+      value: [*pen, *classicPen]
+    PenWithBuild:
+      summary: A Pen just created, with the build of its newest version
+      value:
+        id: 01a0884f-5a21-7b3c-9d4e-6f7a8b9c0d1e
+        title: Hello
+        description: Made with the API
+        tags: [api, demo]
+        access: Private
+        password: null
+        template: false
+        popularity: 0
+        loves_count: 0
+        views_count: 0
+        editor: V2
+        created_at: '2026-09-09T22:30:11Z'
+        updated_at: '2026-09-09T22:30:11Z'
+        urls:
+          editor: https://codepen.io/editor/yourname/pen/01a0884f-5a21-7b3c-9d4e-6f7a8b9c0d1e
+          preview: https://01a0884f-5a21-7b3c-9d4e-6f7a8b9c0d1e.codepen.dev/
+        screenshot_urls:
+          small: https://01a0884f-5a21-7b3c-9d4e-6f7a8b9c0d1e.codepen.dev/.codepen/screenshots/e2c4a6f8b0d1e3c5a7f9b2d4c6e8a0f1b3d5c7e9a2f4b6d8c0e1a3f5b7d9c2e4a6/320.jpg
+          medium: https://01a0884f-5a21-7b3c-9d4e-6f7a8b9c0d1e.codepen.dev/.codepen/screenshots/e2c4a6f8b0d1e3c5a7f9b2d4c6e8a0f1b3d5c7e9a2f4b6d8c0e1a3f5b7d9c2e4a6/512.jpg
+          large: https://01a0884f-5a21-7b3c-9d4e-6f7a8b9c0d1e.codepen.dev/.codepen/screenshots/e2c4a6f8b0d1e3c5a7f9b2d4c6e8a0f1b3d5c7e9a2f4b6d8c0e1a3f5b7d9c2e4a6/800.jpg
+          xlarge: https://01a0884f-5a21-7b3c-9d4e-6f7a8b9c0d1e.codepen.dev/.codepen/screenshots/e2c4a6f8b0d1e3c5a7f9b2d4c6e8a0f1b3d5c7e9a2f4b6d8c0e1a3f5b7d9c2e4a6/1280.jpg
+        saved_version:
+          id: 01a0884f-5a22-7c4d-8e5f-7a8b9c0d1e2f
+          pen_id: 01a0884f-5a21-7b3c-9d4e-6f7a8b9c0d1e
+          hash: e2c4a6f8b0d1e3c5a7f9b2d4c6e8a0f1b3d5c7e9a2f4b6d8c0e1a3f5b7d9c2e4a6
+          created_at: '2026-09-09T22:30:11Z'
+          deployed: false
+          build: &newPenBuild
+            id: 01a0884f-5a22-7c4d-8e5f-7a8b9c0d1e2f
+            status: Success
+            started_at: '2026-09-09T22:30:12Z'
+            ended_at: '2026-09-09T22:30:14Z'
+            rounds: 1
+            diagnostics: []
+            errors: []
+            applied_patches: []
+            patches: []
+            version_id: 01a0884f-5a22-7c4d-8e5f-7a8b9c0d1e2f
+            next_id: null
+            previous_id: null
+          preview_url: https://pv-01a0884f-5a22-7c4d-8e5f-7a8b9c0d1e2f.codepen.dev/
+        deployment: null
+        settings: *settings
+        build: *newPenBuild
+    BuildQueued:
+      summary: A build that has not started (the write was sent with wait=0)
+      value: &buildQueued
+        id: 01a08853-f1ab-7967-812e-eda134bd9e61
+        status: Queued
+        started_at: null
+        ended_at: null
+        rounds: 1
+        diagnostics: []
+        errors: []
+        applied_patches: []
+        patches: []
+        version_id: 01a08853-f1ab-7967-812e-eda134bd9e61
+        next_id: null
+        previous_id: null
+    BuildCanceled:
+      summary: Canceled because the compiler asked for a /tsconfig.json; follow next_id
+      value:
+        id: 01a08853-f1ab-7967-812e-eda134bd9e61
+        status: Canceled
+        started_at: '2026-09-09T22:25:02Z'
+        ended_at: '2026-09-09T22:25:03Z'
+        rounds: 1
+        diagnostics:
+          - type: Information
+            scope: BuildStep
+            message: pen version requires changes
+            code: null
+            url: null
+            block_name: null
+            path: null
+            file_id: null
+            range: null
+        errors: []
+        applied_patches: []
+        patches:
+          - &tsconfigPatch
+            type: create
+            path: /tsconfig.json
+            file_id: null
+            content: '{ "compilerOptions": { "target": "ES2022", "module": "ESNext" } }'
+        version_id: 01a08853-f1ab-7967-812e-eda134bd9e61
+        next_id: 01a08854-2c10-7c7e-9b1a-3f0d5a6b7c8d
+        previous_id: null
+    BuildPatched:
+      summary: The build of the version the API saved with the compiler's changes applied
+      value:
+        id: 01a08854-2c10-7c7e-9b1a-3f0d5a6b7c8d
+        status: Success
+        started_at: '2026-09-09T22:25:04Z'
+        ended_at: '2026-09-09T22:25:07Z'
+        rounds: 2
+        diagnostics: []
+        errors: []
+        applied_patches: [*tsconfigPatch]
+        patches: []
+        files:
+          - id: 01a08854-2c11-7d01-8a2b-4c6e8f0a2b4d
+            path: /src/app.js
+            name: app.js
+            content_hash: 0a28c4e6f8b1d3a5c7e9f2b4d6a8c0e1f3b5d7a9c2e4f6b8d0a1c3e5f7b9d2a4
+            is_binary: false
+            content: const n = 1;
+            url: https://pv-01a08854-2c10-7c7e-9b1a-3f0d5a6b7c8d.codepen.dev/src/app.js
+        version_id: 01a08854-2c10-7c7e-9b1a-3f0d5a6b7c8d
+        next_id: null
+        previous_id: 01a08853-f1ab-7967-812e-eda134bd9e61
+    BuildFailed:
+      summary: A build that failed on a type error; the files are saved anyway
+      value:
+        id: 01a05962-f075-76e8-a2e5-87b46107c5cb
+        status: Failed
+        started_at: '2026-09-09T22:40:02Z'
+        ended_at: '2026-09-09T22:40:06Z'
+        rounds: 1
+        diagnostics:
+          - &typeError
+            type: Error
+            scope: File
+            message: Untyped function calls may not accept type arguments.
+            code: '2347'
+            url: null
+            block_name: typescript-5
+            path: /hooks/useView.ts
+            file_id: 01a058ff-8383-7649-817e-3f37b1fed707
+            range:
+              start: { line: 17, column: 23, position: 779 }
+              end: { line: 17, column: 51, position: 807 }
+          - type: Information
+            scope: BuildStep
+            message: previous step failed
+            code: null
+            url: null
+            block_name: null
+            path: null
+            file_id: null
+            range: null
+        errors: [*typeError]
+        applied_patches: []
+        patches: []
+        version_id: 01a05962-f075-76e8-a2e5-87b46107c5cb
+        next_id: null
+        previous_id: null
+    WriteResult:
+      summary: A write that waited for its build to succeed
+      value:
+        pen: *pen
+        version: *versionDetail
+        build: *buildSuccessDetail
+    WriteResultQueued:
+      summary: A write sent with wait=0, answered before its build ran
+      value:
+        pen: *pen
+        version:
+          id: 01a08853-f1ab-7967-812e-eda134bd9e61
+          pen_id: 01a08738-73f0-7847-b6a8-5789d289c158
+          hash: 5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e
+          created_at: '2026-09-09T22:25:02Z'
+          deployed: false
+          build: *buildQueued
+          preview_url: https://pv-01a08853-f1ab-7967-812e-eda134bd9e61.codepen.dev/
+          files: *sourceFiles
+        build: *buildQueued
+    CollaboratorList:
+      summary: The owner and one editor
+      value:
+        - username: yourname
+          name: Your Name
+          role: Owner
+          is_team_member: false
+        - username: teammate
+          name: Team Mate
+          role: Editor
+          is_team_member: false
+    InviteList:
+      summary: One pending invite
+      value:
+        - id: 01a0886a-0b1c-7d2e-8f3a-4b5c6d7e8f90
+          email: null
+          username: teammate
+          role: Editor
+          created_at: '2026-09-09T22:23:39Z'
+    Collection:
+      summary: A public Collection
+      value: &collection
+        id: QbaoZL
+        title: Demos
+        description: ''
+        access: Public
+        items_count: 3
+        popularity: 4
+        created_at: '2026-09-09T22:23:39Z'
+        updated_at: '2026-09-09T22:23:40Z'
+        url: https://codepen.io/collection/QbaoZL
+    CollectionList:
+      summary: One page of Collections
+      value: [*collection]
+    Asset:
+      summary: A binary Asset
+      value: &asset
+        id: k7Ym0R
+        filename: logo.png
+        url: https://assets.codepen.io/1/logo.png
+        is_binary: true
+        created_at: '2026-09-09T22:23:39Z'
+        updated_at: '2026-09-09T22:23:40Z'
+    AssetList:
+      summary: One page of Assets
+      value:
+        - *asset
+        - id: Lq3vNp
+          filename: theme.css
+          url: https://assets.codepen.io/1/theme.css
+          is_binary: false
+          created_at: '2026-09-09T22:24:10Z'
+          updated_at: '2026-09-09T22:24:10Z'
+    AssetDetailText:
+      summary: A text Asset with its content
+      value:
+        id: Lq3vNp
+        filename: theme.css
+        url: https://assets.codepen.io/1/theme.css
+        is_binary: false
+        created_at: '2026-09-09T22:24:10Z'
+        updated_at: '2026-09-09T22:24:10Z'
+        content: 'body { color: red }'
+    AssetDetailBinary:
+      summary: A binary Asset; its bytes are at url
+      value:
+        id: k7Ym0R
+        filename: logo.png
+        url: https://assets.codepen.io/1/logo.png
+        is_binary: true
+        created_at: '2026-09-09T22:23:39Z'
+        updated_at: '2026-09-09T22:23:40Z'
+        content: null
+
+    PenCreateRequest:
+      summary: A private Pen with two files
+      value:
+        title: Hello
+        description: Made with the API
+        tags: [api, demo]
+        access: Private
+        files:
+          - path: index.html
+            content: <h1>Hello</h1>
+          - path: style.css
+            content: 'h1 { color: teal }'
+    PenUpdateRequest:
+      summary: Retitle, retag and make public
+      value:
+        title: Hello, world
+        tags: [api, demo, v2]
+        access: Public
+    PenProtectRequest:
+      summary: Make a Pen Protected
+      value:
+        access: Protected
+        password: correct horse battery
+    PenForkRequest:
+      summary: Fork under a new title
+      value:
+        title: My copy
+    PenSettingsUpdateRequest:
+      summary: Auto-deploy, indented with tabs
+      value:
+        auto_deploy: true
+        indent_with: tabs
+        tab_size: 4
+    FilesWriteRequest:
+      summary: Move and rewrite a file by ID, rewrite one by path, delete one
+      value:
+        expected_version_id: 01a08738-73f0-7848-b8bf-e8e7e91b1ae2
+        files:
+          - id: 01a0884b-3177-71c3-a1c2-9452bfb9a3fb
+            path: src/app.js
+            content: console.log("moved")
+          - path: index.html
+            content: <script src="src/app.js"></script>
+          - path: style.css
+            delete: true
+    FileWriteRequest:
+      summary: Write one text file
+      value:
+        content: console.log(1)
+        expected_version_id: 01a08738-73f0-7848-b8bf-e8e7e91b1ae2
+    CollaboratorInviteRequest:
+      summary: Invite by username as an Editor
+      value:
+        email_or_username: teammate
+        role: Editor
+
+    BadUserInputError:
+      value:
+        message: 'invalid access: Secret'
+        code: BAD_USER_INPUT
+    UnauthenticatedError:
+      value:
+        message: invalid API key
+        code: UNAUTHENTICATED
+    ForbiddenClassicError:
+      summary: A write to a Classic Pen
+      value:
+        message: Classic Pens are read-only through the API
+        code: FORBIDDEN
+    ForbiddenPlanError:
+      summary: A plan limit
+      value:
+        message: 'Private Pens need PRO. Upgrade at https://codepen.io/pricing'
+        code: FORBIDDEN
+    NotFoundError:
+      value:
+        message: pen not found
+        code: NOT_FOUND
+    ConflictError:
+      value:
+        message: the Pen's head is 01a08854-2c10-7c7e-9b1a-3f0d5a6b7c8d, not 01a08738-73f0-7848-b8bf-e8e7e91b1ae2; read it again and retry
+        code: CONFLICT
+        expected_version_id: 01a08738-73f0-7848-b8bf-e8e7e91b1ae2
+        current_version_id: 01a08854-2c10-7c7e-9b1a-3f0d5a6b7c8d
+    RateLimitedError:
+      value:
+        message: 'daily limit reached: the Free plan allows 3 Pens a day through the API. Upgrade to PRO for 50 a day at https://codepen.io/pricing'
+        code: RATE_LIMITED
+    InternalError:
+      value:
+        message: internal error
+        code: INTERNAL

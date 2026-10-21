@@ -1,0 +1,28 @@
+{
+  "name": "codepen-api-v2-spec",
+  "private": true,
+  "description": "Checks for the OpenAPI description of CodePen's REST API v2. Kept apart from the CLI so it cannot block CLI development or releases.",
+  "type": "module",
+  "scripts": {
+    "generate": "tsx scripts/generate.ts",
+    "generate:check": "tsx scripts/generate.ts --check",
+    "lint": "redocly lint codepen-api-v2.yaml",
+    "docs": "redocly build-docs codepen-api-v2.yaml -o dist/codepen-api-v2.html",
+    "postman": "tsx scripts/postman.ts",
+    "contract": "node --env-file-if-exists=../.env --import tsx contract/run.ts",
+    "endpoint-coverage": "vitest run --config vitest.endpoints.config.ts && tsx endpoints/report.ts",
+    "test": "vitest run --config vitest.config.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "format": "prettier --write --ignore-path .prettierignore .",
+    "format:check": "prettier --check --ignore-path .prettierignore .",
+    "check": "npm run generate:check && npm run lint && npm run typecheck && npm run format:check && npm test && npm run endpoint-coverage"
+  },
+  "devDependencies": {
+    "@redocly/cli": "2.59.0",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "openapi-to-postmanv2": "6.4.0",
+    "openapi-typescript": "^7.13.0",
+    "yaml": "^2.9.1"
+  }
+}

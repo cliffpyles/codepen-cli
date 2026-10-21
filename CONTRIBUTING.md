@@ -5,7 +5,7 @@ Thanks for helping build codepen-cli. This document covers the local setup, the 
 ## Setup
 
 ```bash
-nvm use            # reads .nvmrc (Node 24); Node 20+ works
+nvm use            # reads .nvmrc (Node 24); Node 22.12+ works
 npm install
 cp .env.example .env   # optional; add your CODEPEN_API_KEY for manual testing
 ```
@@ -28,7 +28,7 @@ The project is ESM TypeScript. Use `import`/`export` everywhere and keep the `.j
 | `npm run check`         | Everything CI runs, in order.                                          |
 | `npm run build`         | Emit `dist/` with declarations and source maps.                        |
 
-Run `npm run check` before opening a pull request. CI runs the same steps on Node 20, 22 and 24.
+Run `npm run check` before opening a pull request. CI runs the same steps on Node 22 and 24.
 
 Workflow actions are pinned to commit SHAs with the version in a trailing comment. Dependabot updates both together; do not loosen a pin back to a tag.
 
@@ -56,6 +56,19 @@ test/
   cli.test.ts       # end-to-end runs of the CLI in-process
   auth.test.ts      # auth commands against a temp config file
   <group>.test.ts   # one file per command group, using cliHarness
+specs/                 # its own package; see API spec below
+  codepen-api-v2.yaml  # OpenAPI description of the REST API v2
+  contract/            # contract tests against the live API (read-only)
+  dist/                # built docs page and Postman collection (gitignored)
+  endpoints/           # endpoint coverage of the CLI's client tests
+  generated/           # TypeScript types generated from the spec; do not edit
+  lib/spec.ts          # loads, walks and validates the spec
+  lib/postman.ts       # converts the spec to a Postman collection
+  redocly.yaml         # Redocly lint settings
+  scripts/generate.ts  # writes generated/, or with --check reports it stale
+  scripts/postman.ts   # writes the Postman collection to dist/
+  test/                # offline checks, type tests and type parity tests
+  vendor/              # the official OpenAPI 3.2 meta-schema, unmodified
 ```
 
 Unit tests live next to the module they cover (`foo.ts` → `foo.test.ts`). Cross-cutting tests live in `test/`.
@@ -75,13 +88,94 @@ Unit tests live next to the module they cover (`foo.ts` → `foo.test.ts`). Cros
 3. Add cases to `test/<group>.test.ts` via `cliHarness` for the happy path, the `--json` path, and at least one failure.
 4. Update the command table in `README.md`.
 
-### Live checks
+`specs/codepen-api-v2.yaml` describes every operation and is a good place to check request and response shapes. If the API has changed, updating the spec too is welcome but not required (see [API spec](#api-spec)).
+
+### Manual testing
 
 The suite never touches the network. To try a command against the real API, run it from source with your own key, and keep to read-only commands unless you are working on a Pen you created for the purpose:
 
 ```bash
 npm run dev -- pens list --per-page 3
 ```
+
+To check that the live API still matches the spec, run the [contract tests](#contract-tests). If a response has a field the spec does not list, or is missing one it requires, the spec is out of date. Updating it is optional; mentioning it in the pull request is enough.
+
+## API spec
+
+`specs/codepen-api-v2.yaml` describes CodePen's REST API v2 in OpenAPI 3.2: every operation, request and response, with examples. It is the reference for what the client sends and what the API answers, and it is meant for generating types, interactive docs and Postman collections, checking test coverage, and catching changes in the live API. It is not published to npm. GraphQL is out of scope.
+
+For now the spec is optional. Nothing in `npm run check`, CI or the release process depends on it, and a CLI change never has to wait for it. That will change once the CLI's types are generated from it.
+
+### Checking the spec
+
+`specs/` is a separate private package with its own dependencies and lockfile, so installing or updating them never touches the CLI's. The root `typecheck`, `lint`, `format:check` and `test` scripts all skip it. Install once, then check:
+
+```bash
+npm --prefix specs ci
+npm run spec:check
+```
+
+`spec:check` runs offline in about ten seconds:
+
+- **Golden-file test.** `specs/generated/codepen-api-v2.ts` must match what the spec generates now.
+- **Type tests.** `specs/` typechecks, including `test/generated-types.ts`, whose `@ts-expect-error` lines fail the typecheck if a spec edit weakens the generated types.
+- **Type parity tests.** `test/type-parity.ts` lists, field by field, how each hand-written type in `src/types.ts` differs from its generated counterpart: fields where real data conflicts with the hand-written type, fields it types more loosely, and fields only one side has. A change to either side fails the typecheck until the list is updated, so a CLI change to `src/types.ts` can fail `spec:check`; updating the list is optional, like any spec work.
+- **Lint.** [Redocly](https://redocly.com/docs/cli/)'s recommended rules pass, with the exceptions in `specs/redocly.yaml`.
+- **Formatting.** `specs/` is formatted.
+- **Spec validation.** The document is valid against the OpenAPI 3.2 meta-schema in `specs/vendor/` (copied unmodified from [spec.openapis.org](https://spec.openapis.org/oas/3.2/schema/2025-09-17), Apache-2.0). Every `$ref` resolves and every component is used. OperationIds are unique, and every operation has declared tags and path parameters that match its path.
+- **Example validation.** Every example (request, response, parameter, header and schema) validates against its schema, with JSON Schema 2020-12 and format checking.
+- **Endpoint coverage.** Runs the CLI's own client tests (`src/lib/client.test.ts` and `client.endpoints.test.ts`) unchanged, records every request their `fakeFetch` receives, and matches each to a spec operation by method and path template. It fails if an operation is never requested, or a request matches no operation. A failing client test fails it too.
+
+`npm --prefix specs run format` fixes formatting.
+
+### Contract tests
+
+The contract tests read your own Pens, Collections and Assets from the live API and check each response against the spec: its status, the headers the spec requires (such as `Link` on lists) and its body. Request paths are built from the spec's own path templates, so they test those too.
+
+```bash
+npm run spec:contract
+```
+
+They use the same key as the CLI (`$CODEPEN_API_KEY`, a root `.env`, or the file `codepen auth login` writes) and make about 17 requests, which count against your plan's limits. They are read-only: any request other than `GET` is refused before it is sent. IDs are found from your first page of each list, so an operation is skipped, not failed, when you have nothing to read it with (for example no Classic Pen, or no failed build in your first four 2.0 Pens).
+
+They need the network and your key, so neither `spec:check` nor the Spec workflow runs them. Run them by hand when you change the spec or suspect the API has changed.
+
+### API docs and Postman
+
+Both are built from the spec into `specs/dist/`, which is not committed:
+
+```bash
+npm run spec:docs
+npm run spec:postman
+```
+
+`spec:docs` writes `codepen-api-v2.html`, an interactive reference built by Redocly. It is a single file you can open in a browser; it loads its viewer script and fonts from the web.
+
+`spec:postman` writes `codepen-api-v2.postman_collection.json` with Postman's own converter, the one the Postman app uses on import. Import that file in Postman (File → Import). The collection has one folder per tag and one request per operation, filled from the spec's examples, with the documented responses saved as examples. It sends your key as a Bearer token from a `bearerToken` variable that it does not define, so the key never ends up in the collection: set `bearerToken` in a Postman environment. Optional query parameters are listed but unticked. Requests send the first body type the spec lists: JSON, except Add an Asset, which uploads a file; switch the body to form-data in Postman to upload binary files elsewhere.
+
+The collection includes every operation, writes and deletes too, and they act on your real work.
+
+### Generated types
+
+`specs/generated/codepen-api-v2.ts` holds TypeScript types for every path, operation and schema, generated by [openapi-typescript](https://openapi-ts.dev/) and formatted with the repo's Prettier settings. It is committed so changes to it show up in review. After editing the spec, regenerate it and commit both together:
+
+```bash
+npm --prefix specs run generate
+```
+
+The CLI does not use these types yet; `src/types.ts` stays hand-written until they are complete and stable. They live outside `src/` until then and will move there when they replace it. The type parity tests show how close that is: the generated types are ready to replace the hand-written ones when every difference they list is gone or is one we choose to keep.
+
+The [Spec workflow](.github/workflows/spec.yml) runs `spec:check` on pushes and pull requests that touch `specs/`. It is separate from CI on purpose and must not be made a required check while the spec is optional.
+
+### Writing the spec
+
+- **Sources.** It is written from CodePen's [API v2](https://blog.codepen.io/docs/api/api-v2/) and [REST API v2](https://blog.codepen.io/docs/api/api-v2/rest-api-v2/) docs pages. `info.version` is the date of the newest docs revision it was written from, not a semver; update it when you bring in a newer revision.
+- **3.1-compatible.** Use only features that also exist in OpenAPI 3.1, so a tool that stops at 3.1 can read the file by changing the `openapi:` line to `3.1.1`.
+- **No duplication.** Every shape is defined once under `components` and reused with `$ref`. Shared fields live in open `*Base`, `*Fields` and `*Input` schemas; the final shapes combine them with `allOf` and close with `unevaluatedProperties: false`. Example objects are written once under `components/examples` and reused with YAML anchors and aliases, each anchor before its aliases.
+- **Closed on purpose.** Response schemas reject unknown fields, so a change in the live API fails validation instead of passing silently. Request schemas are closed too, so a misspelled key is caught even though the server ignores it. When the API and the spec disagree, change the spec to match the API instead of loosening a schema.
+- **Accuracy first, then types.** The spec's main job is to describe the API as documented and observed. Types will be generated from it, so write constraints the way the docs state them and in forms a generator can follow: put `required` in the same schema as the properties it names, and model each documented form of a request as its own schema rather than an `anyOf` or `oneOf` of bare `required` lists. When the two goals conflict, keep the accurate description and work around the generator in the generation step.
+- **Evidence extensions.** Fields the docs do not cover, or have not been seen in a live response, carry an `x-codepen-*` extension. The meaning of each is listed under "Specification extensions" in the spec's `info.description`.
+- **Keeping it in step.** When a client change follows a change in the API, updating the spec in the same pull request helps, but is not required.
 
 ## Style
 
@@ -98,10 +192,12 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 ```
 
 - **type**: `feat`, `fix`, `docs`, `test`, `build`, `ci`, `chore`, `refactor`, `perf`, `style`.
-- **scope** (optional): the area touched, e.g. `cli`, `client`, `config`, `pens`, `deps`.
+- **scope** (optional): the area touched, e.g. `cli`, `client`, `config`, `pens`, `spec`, `deps`.
 - **summary**: imperative, lower case, no trailing period, under 72 characters.
 
 Each commit should leave `npm run check` passing. Keep tooling, source, tests and docs in separate commits when they are independent so history stays easy to bisect and review.
+
+Changes that touch only `specs/` are `docs(spec)`. The spec is not published, so a `feat` or `fix` there would cut a release that changes nothing for users.
 
 ## Releasing
 
