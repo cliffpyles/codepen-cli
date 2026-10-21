@@ -65,7 +65,7 @@ info:
     Pens are compiled. Every write to a 2.0 Pen's files (creating, forking, writing, moving or
     deleting files) saves a new version and builds it, like pushing a commit to a repository with CI.
     The compiler may ask for changes (*patches*): adding `/tsconfig.json`, adding `type="module"` to a
-    `<script>` tag, adding a dependency to `package.json`, syncing the Pen's config file, or
+    `script` tag, adding a dependency to `package.json`, syncing the Pen's config file, or
     formatting on save. The API applies them, rebuilds, and saves the result as one more version
     (at most five builds). So a write makes one version, or two:
 
