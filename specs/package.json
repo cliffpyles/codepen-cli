@@ -7,11 +7,12 @@
     "generate": "tsx scripts/generate.ts",
     "generate:check": "tsx scripts/generate.ts --check",
     "contract": "node --env-file-if-exists=../.env --import tsx contract/run.ts",
+    "endpoint-coverage": "vitest run --config vitest.endpoints.config.ts && tsx endpoints/report.ts",
     "test": "vitest run --config vitest.config.ts",
     "typecheck": "tsc -p tsconfig.json",
     "format": "prettier --write --ignore-path .prettierignore .",
     "format:check": "prettier --check --ignore-path .prettierignore .",
-    "check": "npm run generate:check && npm run typecheck && npm run format:check && npm test"
+    "check": "npm run generate:check && npm run typecheck && npm run format:check && npm test && npm run endpoint-coverage"
   },
   "devDependencies": {
     "ajv": "^8.20.0",
