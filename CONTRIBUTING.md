@@ -59,6 +59,7 @@ test/
 specs/                 # its own package; see API spec below
   codepen-api-v2.yaml  # OpenAPI description of the REST API v2
   contract/            # contract tests against the live API (read-only)
+  endpoints/           # endpoint coverage of the CLI's client tests
   generated/           # TypeScript types generated from the spec; do not edit
   lib/spec.ts          # loads, walks and validates the spec
   scripts/generate.ts  # writes generated/, or with --check reports it stale
@@ -118,6 +119,7 @@ npm run spec:check
 - **Formatting.** `specs/` is formatted.
 - **Spec validation.** The document is valid against the OpenAPI 3.2 meta-schema in `specs/vendor/` (copied unmodified from [spec.openapis.org](https://spec.openapis.org/oas/3.2/schema/2025-09-17), Apache-2.0). Every `$ref` resolves and every component is used. OperationIds are unique, and every operation has declared tags and path parameters that match its path.
 - **Example validation.** Every example (request, response, parameter, header and schema) validates against its schema, with JSON Schema 2020-12 and format checking.
+- **Endpoint coverage.** Runs the CLI's own client tests (`src/lib/client.test.ts` and `client.endpoints.test.ts`) unchanged, records every request their `fakeFetch` receives, and matches each to a spec operation by method and path template. It fails if an operation is never requested, or a request matches no operation. A failing client test fails it too.
 
 `npm --prefix specs run format` fixes formatting.
 
