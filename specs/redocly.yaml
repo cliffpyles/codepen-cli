@@ -1,0 +1,7 @@
+# Redocly lint settings for codepen-api-v2.yaml.
+extends:
+  - recommended
+
+rules:
+  # CodePen's docs publish no license for the API, and the spec states only what the docs say.
+  info-license: off

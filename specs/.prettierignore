@@ -2,3 +2,4 @@ node_modules
 package-lock.json
 # Copied verbatim from spec.openapis.org; keep it byte-for-byte.
 vendor
+dist
