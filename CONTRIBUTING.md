@@ -59,10 +59,14 @@ test/
 specs/                 # its own package; see API spec below
   codepen-api-v2.yaml  # OpenAPI description of the REST API v2
   contract/            # contract tests against the live API (read-only)
+  dist/                # built docs page and Postman collection (gitignored)
   endpoints/           # endpoint coverage of the CLI's client tests
   generated/           # TypeScript types generated from the spec; do not edit
   lib/spec.ts          # loads, walks and validates the spec
+  lib/postman.ts       # converts the spec to a Postman collection
+  redocly.yaml         # Redocly lint settings
   scripts/generate.ts  # writes generated/, or with --check reports it stale
+  scripts/postman.ts   # writes the Postman collection to dist/
   test/                # offline checks, type tests and type parity tests
   vendor/              # the official OpenAPI 3.2 meta-schema, unmodified
 ```
@@ -116,6 +120,7 @@ npm run spec:check
 - **Golden-file test.** `specs/generated/codepen-api-v2.ts` must match what the spec generates now.
 - **Type tests.** `specs/` typechecks, including `test/generated-types.ts`, whose `@ts-expect-error` lines fail the typecheck if a spec edit weakens the generated types.
 - **Type parity tests.** `test/type-parity.ts` lists, field by field, how each hand-written type in `src/types.ts` differs from its generated counterpart: fields where real data conflicts with the hand-written type, fields it types more loosely, and fields only one side has. A change to either side fails the typecheck until the list is updated, so a CLI change to `src/types.ts` can fail `spec:check`; updating the list is optional, like any spec work.
+- **Lint.** [Redocly](https://redocly.com/docs/cli/)'s recommended rules pass, with the exceptions in `specs/redocly.yaml`.
 - **Formatting.** `specs/` is formatted.
 - **Spec validation.** The document is valid against the OpenAPI 3.2 meta-schema in `specs/vendor/` (copied unmodified from [spec.openapis.org](https://spec.openapis.org/oas/3.2/schema/2025-09-17), Apache-2.0). Every `$ref` resolves and every component is used. OperationIds are unique, and every operation has declared tags and path parameters that match its path.
 - **Example validation.** Every example (request, response, parameter, header and schema) validates against its schema, with JSON Schema 2020-12 and format checking.
@@ -134,6 +139,21 @@ npm run spec:contract
 They use the same key as the CLI (`$CODEPEN_API_KEY`, a root `.env`, or the file `codepen auth login` writes) and make about 17 requests, which count against your plan's limits. They are read-only: any request other than `GET` is refused before it is sent. IDs are found from your first page of each list, so an operation is skipped, not failed, when you have nothing to read it with (for example no Classic Pen, or no failed build in your first four 2.0 Pens).
 
 They need the network and your key, so neither `spec:check` nor the Spec workflow runs them. Run them by hand when you change the spec or suspect the API has changed.
+
+### API docs and Postman
+
+Both are built from the spec into `specs/dist/`, which is not committed:
+
+```bash
+npm run spec:docs
+npm run spec:postman
+```
+
+`spec:docs` writes `codepen-api-v2.html`, an interactive reference built by Redocly. It is a single file you can open in a browser; it loads its viewer script and fonts from the web.
+
+`spec:postman` writes `codepen-api-v2.postman_collection.json` with Postman's own converter, the one the Postman app uses on import. Import that file in Postman (File → Import). The collection has one folder per tag and one request per operation, filled from the spec's examples, with the documented responses saved as examples. It sends your key as a Bearer token from a `bearerToken` variable that it does not define, so the key never ends up in the collection: set `bearerToken` in a Postman environment. Optional query parameters are listed but unticked. Requests send the first body type the spec lists: JSON, except Add an Asset, which uploads a file; switch the body to form-data in Postman to upload binary files elsewhere.
+
+The collection includes every operation, writes and deletes too, and they act on your real work.
 
 ### Generated types
 
