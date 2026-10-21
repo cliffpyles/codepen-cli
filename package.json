@@ -53,6 +53,7 @@
     "test:coverage": "vitest run --coverage",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm run test:coverage",
     "spec:check": "npm --prefix specs run check",
+    "spec:contract": "npm --prefix specs run contract",
     "prepublishOnly": "npm run clean && npm run check && npm run build"
   },
   "dependencies": {
