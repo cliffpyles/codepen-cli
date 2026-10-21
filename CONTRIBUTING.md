@@ -5,7 +5,7 @@ Thanks for helping build codepen-cli. This document covers the local setup, the 
 ## Setup
 
 ```bash
-nvm use            # reads .nvmrc (Node 24); Node 20+ works
+nvm use            # reads .nvmrc (Node 24); Node 22.12+ works
 npm install
 cp .env.example .env   # optional; add your CODEPEN_API_KEY for manual testing
 ```
@@ -28,7 +28,7 @@ The project is ESM TypeScript. Use `import`/`export` everywhere and keep the `.j
 | `npm run check`         | Everything CI runs, in order.                                          |
 | `npm run build`         | Emit `dist/` with declarations and source maps.                        |
 
-Run `npm run check` before opening a pull request. CI runs the same steps on Node 20, 22 and 24.
+Run `npm run check` before opening a pull request. CI runs the same steps on Node 22 and 24.
 
 Workflow actions are pinned to commit SHAs with the version in a trailing comment. Dependabot updates both together; do not loosen a pin back to a tag.
 
