@@ -19,5 +19,11 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    groups:
+      # The init, analyze and upload-sarif steps must share one version, or
+      # CodeQL fails; bump them in a single PR.
+      codeql-action:
+        patterns:
+          - 'github/codeql-action*'
     commit-message:
       prefix: ci
