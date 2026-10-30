@@ -394,3 +394,161 @@ describe('assets', () => {
     expect((unnamed.get('file') as File).name).toBe('file');
   });
 });
+
+describe('file edits and dry runs', () => {
+  it('edits with hunks and write options, dropping undefined fields', async () => {
+    const fetch = fakeFetch(jsonResponse({ body: writeResult }));
+    const edits = [{ path: 'index.html', old: 'a', new: 'b' }];
+    await client(fetch).editFiles('p1', edits, {
+      wait: 5,
+      dry_run: true,
+      label: 'tweak',
+      expected_version_id: undefined,
+    });
+    expect(callOf(fetch)).toMatchObject({
+      url: `${V2}/pens/p1/files`,
+      init: { method: 'PATCH' },
+    });
+    expect(bodyOf(fetch)).toEqual({ edits, wait: 5, dry_run: true, label: 'tweak' });
+  });
+
+  it('sends dry_run in the body for JSON and the query for multipart and deletes', async () => {
+    const fetch = fakeFetch(
+      jsonResponse({ body: writeResult }),
+      jsonResponse({ body: writeResult }),
+      jsonResponse({ body: writeResult }),
+      jsonResponse({ body: writeResult }),
+    );
+    const c = client(fetch);
+    const bytes = new Uint8Array([1]);
+    await c.putFile('p1', 'a.txt', 'x', { dry_run: true });
+    await c.putBinaryFile('p1', 'a.bin', bytes, { dry_run: true });
+    await c.putFiles('p1', [], { dry_run: true }, [{ path: 'a.bin', data: bytes }]);
+    await c.deleteFile('p1', 'a.txt', { dry_run: true });
+    expect(bodyOf(fetch, 0)).toEqual({ content: 'x', dry_run: true });
+    expect(callOf(fetch, 1).url).toBe(`${V2}/pens/p1/files/a.bin?dry_run=true`);
+    expect(callOf(fetch, 2).url).toBe(`${V2}/pens/p1/files?dry_run=true`);
+    expect(callOf(fetch, 3).url).toBe(`${V2}/pens/p1/files/a.txt?dry_run=true`);
+  });
+
+  it('names the version, in the JSON body or the multipart changes part', async () => {
+    const fetch = fakeFetch(
+      jsonResponse({ body: writeResult }),
+      jsonResponse({ body: writeResult }),
+    );
+    const c = client(fetch);
+    const upload = { path: 'a.bin', data: new Uint8Array([1]) };
+    await c.putFiles('p1', [{ path: 'a', content: 'x' }], { label: 'one' });
+    await c.putFiles('p1', [], { label: 'two' }, [upload]);
+    expect(bodyOf(fetch, 0)).toEqual({ files: [{ path: 'a', content: 'x' }], label: 'one' });
+    const form = callOf(fetch, 1).init?.body as FormData;
+    expect(JSON.parse(form.get('changes') as string)).toEqual({ files: [], label: 'two' });
+  });
+
+  it('names a restored version in the query', async () => {
+    const fetch = fakeFetch(jsonResponse({ body: pen() }), jsonResponse({ body: pen() }));
+    const c = client(fetch);
+    await c.restoreVersion('p1', 'v1', 'back');
+    await c.restoreVersion('p1', 'v1');
+    expect(callOf(fetch, 0).url).toBe(`${V2}/pens/p1/versions/v1/restore?label=back`);
+    expect(callOf(fetch, 1).url).toBe(`${V2}/pens/p1/versions/v1/restore`);
+  });
+});
+
+describe('custom domains', () => {
+  it('lists, adds and removes, encoding the host', async () => {
+    const fetch = fakeFetch(
+      jsonResponse({ body: [] }),
+      jsonResponse({ status: 201, body: [] }),
+      jsonResponse({ body: [] }),
+    );
+    const c = client(fetch);
+    await c.listDomains('p1');
+    await c.addDomain('p1', 'www.example.com');
+    await c.removeDomain('p1', 'a/b.example.com');
+    expect(callOf(fetch, 0).url).toBe(`${V2}/pens/p1/domains`);
+    expect(callOf(fetch, 1)).toMatchObject({
+      url: `${V2}/pens/p1/domains`,
+      init: { method: 'POST' },
+    });
+    expect(bodyOf(fetch, 1)).toEqual({ host: 'www.example.com' });
+    expect(callOf(fetch, 2)).toMatchObject({
+      url: `${V2}/pens/p1/domains/a%2Fb.example.com`,
+      init: { method: 'DELETE' },
+    });
+  });
+});
+
+describe('trash', () => {
+  const item = {
+    id: 't1',
+    type: 'Pen',
+    item_id: 'p1',
+    title: 'Old',
+    deleted_at: '2026-10-01T00:00:00Z',
+    expires_at: '2026-10-04T00:00:00Z',
+  };
+
+  it('lists with paging', async () => {
+    const fetch = fakeFetch(jsonResponse({ body: [item] }));
+    const page = await client(fetch).listTrash({ page: 2, sort: 'updated' });
+    expect(callOf(fetch).url).toBe(`${V2}/trash?page=2&sort=updated`);
+    expect(page.items).toEqual([item]);
+  });
+
+  it('purges a Pen and answers the deleted item', async () => {
+    const fetch = fakeFetch(jsonResponse({ body: item }));
+    await expect(client(fetch).purgePen('p 1')).resolves.toEqual(item);
+    expect(callOf(fetch)).toMatchObject({
+      url: `${V2}/trash/pens/p%201`,
+      init: { method: 'DELETE' },
+    });
+  });
+
+  it('restores a Pen and a Collection', async () => {
+    const fetch = fakeFetch(
+      jsonResponse({ body: pen() }),
+      jsonResponse({ body: { id: 'c1', title: 'C', access: 'Public' } }),
+    );
+    const c = client(fetch);
+    await c.restorePen('p1');
+    await c.restoreCollection('c1');
+    expect(callOf(fetch, 0)).toMatchObject({
+      url: `${V2}/pens/p1/restore`,
+      init: { method: 'POST' },
+    });
+    expect(callOf(fetch, 1)).toMatchObject({
+      url: `${V2}/collections/c1/restore`,
+      init: { method: 'POST' },
+    });
+  });
+});
+
+describe('listing Pens by Block', () => {
+  it('sends the filters and returns the next cursor from the Link header', async () => {
+    const link = `<${TEST_URL}/v2/pens?block=sass-1&cursor=abc>; rel="next", <${TEST_URL}/v2/pens?block=sass-1>; rel="first"`;
+    const fetch = fakeFetch(jsonResponse({ body: [], headers: { link } }));
+    const page = await client(fetch).listPens({
+      block: 'sass-1',
+      cursor: 'xyz',
+      untitled: true,
+      created_since: '2026-01-01T00:00:00.000Z',
+    });
+    const url = new URL(callOf(fetch).url);
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      block: 'sass-1',
+      cursor: 'xyz',
+      untitled: 'true',
+      created_since: '2026-01-01T00:00:00.000Z',
+    });
+    expect(page.next_cursor).toBe('abc');
+  });
+
+  it('has no cursor on a list that pages by number', async () => {
+    const link = `<${TEST_URL}/v2/pens?page=2>; rel="next"`;
+    const fetch = fakeFetch(jsonResponse({ body: [], headers: { link } }));
+    const page = await client(fetch).listPens();
+    expect(page.next_cursor).toBeUndefined();
+    expect(page.links.next).toBe(2);
+  });
+});

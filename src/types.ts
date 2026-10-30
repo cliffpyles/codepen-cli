@@ -5,7 +5,7 @@ export type BuildStatus = 'Queued' | 'Running' | 'Success' | 'Failed' | 'Cancele
 export type Role = 'Owner' | 'Editor' | 'Viewer';
 
 export interface Diagnostic {
-  type: 'Error' | 'Warning' | 'Information' | 'Hint';
+  type: 'Error' | 'Warning' | 'Information' | 'Hint' | 'Patch';
   scope: 'Build' | 'BuildStep' | 'File';
   message: string;
   code?: string | null;
@@ -45,6 +45,8 @@ export interface PenFile {
   name?: string;
   content_hash?: string;
   is_binary?: boolean;
+  bytes?: number;
+  content_type?: string;
   content?: string | null;
   url?: string | null;
 }
@@ -55,6 +57,9 @@ export interface Version {
   hash?: string;
   created_at?: string;
   deployed?: boolean;
+  /** False only for a dry run's unsaved version. */
+  saved?: boolean;
+  label?: string | null;
   build?: Build | null;
   preview_url?: string | null;
   files?: PenFile[];
@@ -67,6 +72,23 @@ export interface Deployment {
   custom_domains?: string[];
   created_at?: string;
   updated_at?: string;
+}
+
+export interface DnsRecord {
+  type: string;
+  name: string;
+  value: string;
+}
+
+/** A custom domain on a Pen's deployment, with the DNS records it needs to verify. */
+export interface PenDomain {
+  id: string;
+  host: string;
+  status: 'Pending' | 'Verified' | 'Misconfigured';
+  dns: DnsRecord[];
+  cname_record: string;
+  a_record: string;
+  created_at: string;
 }
 
 export interface PenSettings {
@@ -146,9 +168,34 @@ export interface FileChange {
   delete?: boolean;
 }
 
+/** One hunk of a file edit. Address the file by `path` or `id`. */
+export interface FileEdit {
+  path?: string;
+  id?: string;
+  /** Text that appears in the file exactly once, unless `replace_all` is set. */
+  old: string;
+  new: string;
+  replace_all?: boolean;
+}
+
+/** A Pen or Collection in the trash, restorable until `expires_at`. */
+export interface TrashItem {
+  id: string;
+  type: 'Pen' | 'Collection';
+  /** The Pen's or Collection's id, for the restore commands. */
+  item_id: string;
+  title: string;
+  deleted_at: string;
+  expires_at: string;
+}
+
 export interface ApiErrorBody {
   message: string;
   code: ApiErrorCode;
+  /** On BAD_USER_INPUT, the argument it is about, when known. */
+  field?: string;
+  /** On BAD_USER_INPUT, structured detail such as the `misses` of a file edit. */
+  details?: Record<string, unknown>;
 }
 
 export type ApiErrorCode =
@@ -158,7 +205,8 @@ export type ApiErrorCode =
   | 'NOT_FOUND'
   | 'CONFLICT'
   | 'RATE_LIMITED'
-  | 'INTERNAL';
+  | 'INTERNAL'
+  | 'BUILD_TIMEOUT';
 
 export interface ListOptions {
   page?: number | undefined;
@@ -171,4 +219,6 @@ export interface Page<T> {
   items: T[];
   /** Page numbers parsed from the `Link` response header, when present. */
   links: Partial<Record<'next' | 'prev' | 'first' | 'last', number>>;
+  /** Where the next page starts, for lists that page by cursor rather than page number. */
+  next_cursor?: string;
 }

@@ -3,12 +3,16 @@ import type { ApiErrorBody, ApiErrorCode } from '../types.js';
 export class CodePenApiError extends Error {
   readonly status: number;
   readonly code: ApiErrorCode | 'UNKNOWN';
+  readonly field: string | undefined;
+  readonly details: Record<string, unknown> | undefined;
 
   constructor(status: number, body: Partial<ApiErrorBody> | undefined, fallback: string) {
     super(body?.message ?? fallback);
     this.name = 'CodePenApiError';
     this.status = status;
     this.code = body?.code ?? 'UNKNOWN';
+    this.field = body?.field;
+    this.details = body?.details;
   }
 }
 
@@ -31,6 +35,7 @@ export function exitCodeFor(error: unknown): number {
       case 'NOT_FOUND':
         return 66; // EX_NOINPUT
       case 'RATE_LIMITED':
+      case 'BUILD_TIMEOUT':
         return 75; // EX_TEMPFAIL
       default:
         return 1;

@@ -5,12 +5,15 @@ import type {
   Collection,
   Deployment,
   FileChange,
+  FileEdit,
   Invite,
   ListOptions,
   Page,
   Pen,
+  PenDomain,
   PenFile,
   PenSettings,
+  TrashItem,
   Version,
   WriteResult,
 } from '../types.js';
@@ -36,6 +39,14 @@ export interface PenListOptions extends ListOptions {
   template?: boolean | undefined;
   forks?: string | undefined;
   editor?: string | undefined;
+  created_since?: string | undefined;
+  created_until?: string | undefined;
+  updated_since?: string | undefined;
+  updated_until?: string | undefined;
+  untitled?: boolean | undefined;
+  /** Pens whose saved head uses this Block. A capped scan that pages by `cursor`. */
+  block?: string | undefined;
+  cursor?: string | undefined;
 }
 
 export interface CollectionListOptions extends ListOptions {
@@ -57,6 +68,18 @@ export interface WriteOptions {
   wait?: number | undefined;
   /** Refuse the write with CONFLICT if the Pen's head is no longer this version. */
   expected_version_id?: string | undefined;
+}
+
+/** Options accepted by file writes, which can also be tried without saving. */
+export interface FileWriteOptions extends WriteOptions {
+  /** Build the proposed files without saving them; the head does not move. */
+  dry_run?: boolean | undefined;
+}
+
+/** File writes that make one version can also name it. */
+export interface LabeledWriteOptions extends FileWriteOptions {
+  /** Names the saved version (at most 80 characters). */
+  label?: string | undefined;
 }
 
 /** A file to include in a new Pen: text as `content`, binary as `data`. */
@@ -98,6 +121,13 @@ export function parseLinkHeader(header: string | null): Page<never>['links'] {
     if (page !== null && !Number.isNaN(Number(page))) links[rel] = Number(page);
   }
   return links;
+}
+
+/** The cursor in a `Link` header's next page, for lists that page by cursor. */
+export function parseNextCursor(header: string | null): string | undefined {
+  const next = header?.split(',').find((part) => part.includes('rel="next"'));
+  const url = next && /<([^>]+)>/.exec(next)?.[1];
+  return url ? (new URL(url).searchParams.get('cursor') ?? undefined) : undefined;
 }
 
 /** A build is settled when the API will not change it any further on its own. */
@@ -217,7 +247,9 @@ export class CodePenClient {
 
   private async list<T>(path: string, query: Query): Promise<Page<T>> {
     const { data, response } = await this.request<T[]>('GET', path, { query });
-    return { items: data, links: parseLinkHeader(response.headers.get('link')) };
+    const link = response.headers.get('link');
+    const next_cursor = parseNextCursor(link);
+    return { items: data, links: parseLinkHeader(link), ...(next_cursor ? { next_cursor } : {}) };
   }
 
   private async send<T>(method: string, path: string, body?: object, query?: Query): Promise<T> {
@@ -272,6 +304,11 @@ export class CodePenClient {
     });
   }
 
+  /** Take a Pen out of the trash. `id` is the trash item's `item_id`. */
+  restorePen(id: string) {
+    return this.send<Pen>('POST', `/pens/${enc(id)}/restore`);
+  }
+
   updatePenSettings(id: string, settings: PenSettings) {
     return this.send<PenSettings>('PATCH', `/pens/${enc(id)}/settings`, settings);
   }
@@ -287,7 +324,7 @@ export class CodePenClient {
   }
 
   /** Write one text file. */
-  putFile(penId: string, path: string, content: string, options: WriteOptions = {}) {
+  putFile(penId: string, path: string, content: string, options: FileWriteOptions = {}) {
     return this.send<WriteResult>('PUT', `/pens/${enc(penId)}/files${encPath(path)}`, {
       content,
       ...options,
@@ -299,7 +336,7 @@ export class CodePenClient {
     penId: string,
     path: string,
     data: Uint8Array,
-    options: WriteOptions = {},
+    options: FileWriteOptions = {},
   ): Promise<WriteResult> {
     const form = new FormData();
     form.set('file', toBlob(data), normalizePenPath(path).split('/').pop() ?? 'file');
@@ -308,9 +345,7 @@ export class CodePenClient {
     const result = await this.request<WriteResult>(
       'PUT',
       `/pens/${enc(penId)}/files${encPath(path)}`,
-      {
-        form,
-      },
+      { form, query: { dry_run: options.dry_run } },
     );
     return result.data;
   }
@@ -322,7 +357,7 @@ export class CodePenClient {
   async putFiles(
     penId: string,
     files: FileChange[],
-    options: WriteOptions = {},
+    options: LabeledWriteOptions = {},
     uploads: BinaryFileInput[] = [],
   ): Promise<WriteResult> {
     const path = `/pens/${enc(penId)}/files`;
@@ -330,14 +365,24 @@ export class CodePenClient {
       return this.send<WriteResult>('PUT', path, { files, ...options });
     }
     const form = new FormData();
-    if (files.length) form.set('changes', JSON.stringify({ files }));
+    if (files.length || options.label) {
+      form.set('changes', JSON.stringify(dropUndefined({ files, label: options.label })));
+    }
     if (options.expected_version_id) form.set('expected_version_id', options.expected_version_id);
     appendUploads(form, uploads);
-    const query = options.wait === undefined ? {} : { wait: options.wait };
+    const query = { wait: options.wait, dry_run: options.dry_run };
     return (await this.request<WriteResult>('PUT', path, { form, query })).data;
   }
 
-  deleteFile(penId: string, path: string, options: WriteOptions = {}) {
+  /**
+   * Change text files without resending them, as one new version. If any hunk cannot be applied the
+   * whole write fails with BAD_USER_INPUT, and the error's `details.misses` lists every miss.
+   */
+  editFiles(penId: string, edits: FileEdit[], options: LabeledWriteOptions = {}) {
+    return this.send<WriteResult>('PATCH', `/pens/${enc(penId)}/files`, { edits, ...options });
+  }
+
+  deleteFile(penId: string, path: string, options: FileWriteOptions = {}) {
     return this.send<WriteResult>(
       'DELETE',
       `/pens/${enc(penId)}/files${encPath(path)}`,
@@ -382,8 +427,13 @@ export class CodePenClient {
     return current;
   }
 
-  restoreVersion(penId: string, versionId: string) {
-    return this.send<Pen>('POST', `/pens/${enc(penId)}/versions/${enc(versionId)}/restore`);
+  restoreVersion(penId: string, versionId: string, label?: string) {
+    return this.send<Pen>(
+      'POST',
+      `/pens/${enc(penId)}/versions/${enc(versionId)}/restore`,
+      undefined,
+      { label },
+    );
   }
 
   deploy(penId: string, versionId?: string) {
@@ -394,6 +444,22 @@ export class CodePenClient {
 
   undeploy(penId: string) {
     return this.send<undefined>('DELETE', `/pens/${enc(penId)}/deployment`);
+  }
+
+  // ---- Custom domains -------------------------------------------------------
+
+  listDomains(penId: string) {
+    return this.get<PenDomain[]>(`/pens/${enc(penId)}/domains`);
+  }
+
+  /** Answers every custom domain, with the DNS records to create so the new one verifies. */
+  addDomain(penId: string, host: string) {
+    return this.send<PenDomain[]>('POST', `/pens/${enc(penId)}/domains`, { host });
+  }
+
+  /** Answers the custom domains that remain. */
+  removeDomain(penId: string, host: string) {
+    return this.send<PenDomain[]>('DELETE', `/pens/${enc(penId)}/domains/${enc(host)}`);
   }
 
   // ---- Collaborators --------------------------------------------------------
@@ -449,6 +515,11 @@ export class CodePenClient {
     return this.send<undefined>('DELETE', `/collections/${enc(id)}`);
   }
 
+  /** Take a Collection out of the trash. `id` is the trash item's `item_id`. */
+  restoreCollection(id: string) {
+    return this.send<Collection>('POST', `/collections/${enc(id)}/restore`);
+  }
+
   listCollectionPens(id: string, options: ListOptions = {}) {
     return this.list<Pen>(`/collections/${enc(id)}/pens`, { ...options });
   }
@@ -459,6 +530,17 @@ export class CodePenClient {
 
   removePenFromCollection(id: string, penId: string) {
     return this.send<undefined>('DELETE', `/collections/${enc(id)}/pens/${enc(penId)}`);
+  }
+
+  // ---- Trash ----------------------------------------------------------------
+
+  listTrash(options: ListOptions = {}) {
+    return this.list<TrashItem>('/trash', { ...options });
+  }
+
+  /** Delete a trashed Pen for good. Answers the trash item that was deleted. */
+  purgePen(id: string) {
+    return this.send<TrashItem>('DELETE', `/trash/pens/${enc(id)}`);
   }
 
   // ---- Assets ---------------------------------------------------------------

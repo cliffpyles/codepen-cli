@@ -4,6 +4,8 @@ export type {
   ClientOptions,
   CollectionListOptions,
   FileInput,
+  FileWriteOptions,
+  LabeledWriteOptions,
   PenListOptions,
   TextFileInput,
   WriteOptions,
