@@ -133,7 +133,7 @@ npm run spec:check
 - **Example validation.** Every example (request, response, parameter, header and schema) validates against its schema, with JSON Schema 2020-12 and format checking.
 - **Upstream comparison.** `test/hybrid.test.ts` checks that the built spec has exactly upstream's operations, parameters, statuses and body types, and that every example is valid against upstream's schemas too, so the overlays can only narrow what upstream says.
 - **Overlay checks.** Building fails if an overlay's target no longer exists upstream, so an upstream change cannot silently leave a refinement behind.
-- **Endpoint coverage.** Runs the CLI's own client tests (`src/lib/client.test.ts` and `client.endpoints.test.ts`) unchanged, records every request their `fakeFetch` receives, and matches each to a spec operation by method and path template. It fails if an operation is never requested, or a request matches no operation. Operations the client does not call yet are listed exactly in `NOT_IN_CLIENT` in `specs/endpoints/coverage.ts`; remove an entry when the client gains it. A failing client test fails it too.
+- **Endpoint coverage.** Runs the CLI's own client tests (`src/lib/client.test.ts` and `client.endpoints.test.ts`) unchanged, records every request their `fakeFetch` receives, and matches each to a spec operation by method and path template. It fails if an operation is never requested, or a request matches no operation. An operation upstream adds before the client calls it goes in `NOT_IN_CLIENT` in `specs/endpoints/coverage.ts`, which is empty today; remove the entry when the client gains it. A failing client test fails it too.
 
 `npm --prefix specs run format` fixes formatting.
 

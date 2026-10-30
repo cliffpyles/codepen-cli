@@ -21,5 +21,7 @@ const stale = NOT_IN_CLIENT.filter((name) => !uncovered.includes(name));
 for (const name of missing) console.log(`✗ not exercised: ${name}`);
 for (const name of stale) console.log(`✗ exercised, so remove it from NOT_IN_CLIENT: ${name}`);
 for (const call of unknown) console.log(`✗ not in the spec: ${call}`);
-console.log(`${NOT_IN_CLIENT.length} operations are not in the client yet.`);
+if (NOT_IN_CLIENT.length > 0) {
+  console.log(`${NOT_IN_CLIENT.length} operations are not in the client yet.`);
+}
 if (missing.length > 0 || stale.length > 0 || unknown.length > 0) process.exitCode = 1;

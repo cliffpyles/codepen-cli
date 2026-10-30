@@ -33,10 +33,7 @@ type GenError =
 export type AccessParity = Assert<Equals<Hand.Access, Gen['PenAccess']>>;
 export type BuildStatusParity = Assert<Equals<Hand.BuildStatus, Gen['Build']['status']>>;
 export type RoleParity = Assert<Equals<Hand.Role, Gen['Role']>>;
-// The hand-written type has no BUILD_TIMEOUT, which only a dry run answers and the client never sends one.
-export type ErrorCodeParity = Assert<
-  Equals<Hand.ApiErrorCode, Exclude<GenError['code'], 'BUILD_TIMEOUT'>>
->;
+export type ErrorCodeParity = Assert<Equals<Hand.ApiErrorCode, GenError['code']>>;
 
 // ── Responses ──────────────────────────────────────────────────────────────────────────────
 
@@ -69,10 +66,11 @@ export type VersionParity = Assert<
   Equals<
     Differences<Hand.Version, Gen['VersionDetail']>,
     {
-      // Conflicts through Build.patches, Patch.content and Diagnostic.type.
+      // Conflicts through Build.patches and Patch.content.
       conflicting: 'build';
-      looser: 'created_at' | 'deployed' | 'files' | 'hash' | 'pen_id' | 'preview_url';
-      missing: 'label' | 'saved';
+      looser:
+        'created_at' | 'deployed' | 'files' | 'hash' | 'label' | 'pen_id' | 'preview_url' | 'saved';
+      missing: never;
       handOnly: never;
     }
   >
@@ -82,10 +80,18 @@ export type BuildParity = Assert<
   Equals<
     Differences<Hand.Build, Gen['Build']>,
     {
-      // Patch.content can be null, and Diagnostic.type can be Patch.
-      conflicting: 'applied_patches' | 'diagnostics' | 'errors' | 'patches';
+      // Patch.content can be null in the spec.
+      conflicting: 'applied_patches' | 'patches';
       looser:
-        'ended_at' | 'files' | 'next_id' | 'previous_id' | 'rounds' | 'started_at' | 'version_id';
+        | 'diagnostics'
+        | 'ended_at'
+        | 'errors'
+        | 'files'
+        | 'next_id'
+        | 'previous_id'
+        | 'rounds'
+        | 'started_at'
+        | 'version_id';
       missing: never;
       handOnly: never;
     }
@@ -109,8 +115,7 @@ export type DiagnosticParity = Assert<
   Equals<
     Differences<Hand.Diagnostic, Gen['BuildDiagnostic']>,
     {
-      // The spec has a Patch type the hand-written type does not.
-      conflicting: 'type';
+      conflicting: never;
       looser: 'block_name' | 'code' | 'file_id' | 'path' | 'range' | 'url';
       missing: never;
       handOnly: never;
@@ -123,8 +128,8 @@ export type PenFileParity = Assert<
     Differences<Hand.PenFile, Gen['File']>,
     {
       conflicting: never;
-      looser: 'content' | 'content_hash' | 'is_binary' | 'name' | 'url';
-      missing: 'bytes' | 'content_type';
+      looser: 'bytes' | 'content' | 'content_hash' | 'content_type' | 'is_binary' | 'name' | 'url';
+      missing: never;
       handOnly: never;
     }
   >
@@ -215,9 +220,28 @@ export type WriteResultParity = Assert<
   >
 >;
 
-// Every error the client can receive fits the hand-written body, which keeps only message and code.
-export type ErrorBodyParity = Assert<
-  [Exclude<GenError, { code: 'BUILD_TIMEOUT' }>] extends [Hand.ApiErrorBody] ? true : false
+// Every error fits the hand-written body, which keeps the fields the CLI reads.
+export type ErrorBodyParity = Assert<[GenError] extends [Hand.ApiErrorBody] ? true : false>;
+
+export type PenDomainParity = Assert<
+  Equals<
+    Differences<Hand.PenDomain, Gen['PenDomain']>,
+    { conflicting: never; looser: never; missing: never; handOnly: never }
+  >
+>;
+
+export type DnsRecordParity = Assert<
+  Equals<
+    Differences<Hand.DnsRecord, Gen['DnsRecord']>,
+    { conflicting: never; looser: never; missing: never; handOnly: never }
+  >
+>;
+
+export type TrashItemParity = Assert<
+  Equals<
+    Differences<Hand.TrashItem, Gen['TrashItem']>,
+    { conflicting: never; looser: never; missing: never; handOnly: never }
+  >
 >;
 
 // ── Requests ───────────────────────────────────────────────────────────────────────────────
@@ -229,3 +253,10 @@ type HandChangeFitsGenerated = Assert<
   Equals<[Hand.FileChange] extends [Gen['FileChange']] ? true : false, false>
 >;
 export type FileChangeParity = [GeneratedChangeFitsHand, HandChangeFitsGenerated];
+
+// Every documented hunk fits the hand-written FileEdit, which also accepts one with no file.
+type GeneratedEditFitsHand = Assert<[Gen['FileEdit']] extends [Hand.FileEdit] ? true : false>;
+type HandEditFitsGenerated = Assert<
+  Equals<[Hand.FileEdit] extends [Gen['FileEdit']] ? true : false, false>
+>;
+export type FileEditParity = [GeneratedEditFitsHand, HandEditFitsGenerated];

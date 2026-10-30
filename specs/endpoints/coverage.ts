@@ -10,19 +10,10 @@ export const CALLS_FILE = join(tmpdir(), 'codepen-api-v2-spec-endpoint-calls.jso
 
 /**
  * Operations the official spec has and the CLI's client does not call yet. Endpoint coverage fails
- * if one of these starts being exercised, so the list stays exact; remove an entry when the client
- * gains it.
+ * if one of these starts being exercised, so the list stays exact; add an entry when upstream gains
+ * an operation before the client does, and remove it when the client catches up.
  */
-export const NOT_IN_CLIENT = [
-  'PATCH /v2/pens/{id}/files',
-  'GET /v2/pens/{id}/domains',
-  'POST /v2/pens/{id}/domains',
-  'DELETE /v2/pens/{id}/domains/{host}',
-  'POST /v2/pens/{id}/restore',
-  'GET /v2/trash',
-  'DELETE /v2/trash/pens/{id}',
-  'POST /v2/collections/{id}/restore',
-];
+export const NOT_IN_CLIENT: string[] = [];
 
 export interface RecordedCall {
   method: string;
