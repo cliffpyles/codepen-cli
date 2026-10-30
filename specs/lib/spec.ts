@@ -1,4 +1,4 @@
-/** Loading, walking and validating specs/codepen-api-v2.yaml. Every check returns a list of problems; empty means it passed. */
+/** Loading, walking and validating an OpenAPI description, by default specs/codepen-api-v2.yaml. Every check returns a list of problems; empty means it passed. */
 
 import { readFileSync } from 'node:fs';
 import { Ajv2020 } from 'ajv/dist/2020.js';
@@ -11,15 +11,10 @@ export interface JsonObject {
 }
 
 export const SPEC_URL = new URL('../codepen-api-v2.yaml', import.meta.url);
-export const META_SCHEMA_URL = new URL('../vendor/oas-3.2-schema-2025-09-17.json', import.meta.url);
+export const META_SCHEMA_URL = new URL('../vendor/oas-3.1-schema-2025-09-15.json', import.meta.url);
 
-/** The spec's own `x-codepen-*` keywords, allowed inside schemas. Any other unknown keyword is an error. */
-export const EXTENSION_KEYWORDS = [
-  'x-codepen-undocumented',
-  'x-codepen-changelog',
-  'x-codepen-unverified',
-  'x-codepen-multi-segment',
-];
+/** Keywords allowed inside schemas beyond JSON Schema's own, upstream's `example` among them. Any other is an error. */
+export const EXTENSION_KEYWORDS = ['example', 'x-codepen-multi-segment'];
 
 const HTTP_METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace', 'query'];
 const SPEC_ID = 'urn:codepen:api-v2';

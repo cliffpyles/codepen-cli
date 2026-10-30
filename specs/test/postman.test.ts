@@ -47,19 +47,19 @@ describe('Postman collection', () => {
 
   it("sends each request body in the spec's first-listed media type", () => {
     expect(named('Write one file').body?.mode).toBe('raw');
-    expect(named('Apply several file changes as one version').body?.mode).toBe('raw');
-    expect(named('Create a 2.0 Pen').body?.mode).toBe('raw');
-    expect(named('Add an Asset').body?.mode).toBe('formdata');
+    expect(named('Write files as one version').body?.mode).toBe('raw');
+    expect(named('Create a Pen').body?.mode).toBe('raw');
+    expect(named('Add an Asset').body?.mode).toBe('raw');
   });
 
   it('leaves optional query parameters unticked', () => {
-    const query = named('List your Pens').url.query ?? [];
+    const query = named('List Pens').url.query ?? [];
     expect(query.length).toBeGreaterThan(0);
     expect(query.every((q) => q.disabled === true)).toBe(true);
   });
 
   it("fills requests from the spec's examples", () => {
-    expect(JSON.parse(named("Update a Pen's details").body?.raw ?? '{}')).toEqual({
+    expect(JSON.parse(named('Update a Pen').body?.raw ?? '{}')).toEqual({
       title: 'Hello, world',
       tags: ['api', 'demo', 'v2'],
       access: 'Public',

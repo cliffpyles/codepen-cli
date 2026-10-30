@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-  '/pens': {
+  '/v2/pens': {
     parameters: {
       query?: never;
       header?: never;
@@ -12,215 +12,226 @@ export interface paths {
       cookie?: never;
     };
     /**
-     * List your Pens
-     * @description Your Pens, paged and filterable. Every filter given must match. Each Pen carries its saved
-     *     head without files.
+     * List Pens
+     * @description The key owner's Pens, filtered. Every filter given must match.
+     *
+     *     With `block`, a request scans at most 500 candidate Pens: the `Link`
+     *     header has `first` and, while candidates remain, `next` with a
+     *     `cursor`, but no `last`. Follow `next` until it is absent, even when
+     *     the page is empty or `X-CodePen-Partial` is `true`.
      */
-    get: operations['listPens'];
+    get: operations['pens'];
     put?: never;
     /**
-     * Create a 2.0 Pen
-     * @description Creates a 2.0 Pen and builds it. Without `files` the Pen gets starter files. `title` defaults
-     *     to "Untitled" and `access` to the account's default privacy. Counts against the daily Pen
-     *     create allowance, shared with forks.
+     * Create a Pen
+     * @description Starter files when `files` is omitted; `.codepen/pen.config.json` is
+     *     added when the caller does not supply one. The title defaults to
+     *     "Untitled" and `access` to the key owner's default privacy. Anything
+     *     but `Public` needs a PRO plan.
      *
-     *     The new Pen is built like any other write, so its files may be more than the files sent. The
-     *     response is the Pen plus a top-level `build`: the build of its newest version.
+     *     The answer is the Pen with the first version's `build`; `wait` in the
+     *     body or the query bounds how long the request waits for it.
      */
-    post: operations['createPen'];
+    post: operations['penCreate'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/pens/{id}': {
+  '/v2/pens/{id}': {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
          * @example 01a08738-73f0-7847-b6a8-5789d289c158
          */
-        id: components['parameters']['PenId'];
+        id: components['parameters']['penId'];
       };
       cookie?: never;
     };
-    /** Get one Pen */
-    get: operations['getPen'];
+    /**
+     * Get a Pen
+     * @description One of the key owner's Pens, whatever its access. A Pen made in the classic editor reads like any other.
+     */
+    get: operations['pen'];
     put?: never;
     post?: never;
     /**
      * Move a Pen to the trash
-     * @description Moves the Pen to the trash. It is listed under Deleted Items on the site and can be restored
-     *     there for 3 days, after which it is gone. Does not give back a daily create.
+     * @description The Pen is listed under Deleted Items on the site and in
+     *     `GET /v2/trash`, and can be restored for three days.
      */
-    delete: operations['deletePen'];
+    delete: operations['penDelete'];
     options?: never;
     head?: never;
     /**
-     * Update a Pen's details
-     * @description Changes only the keys given; `tags` replaces the whole list. These details are not files, so
-     *     the update makes no version and no build.
-     *
-     *     On a Pen that is already `Protected`, `password` alone replaces the password. A `password`
-     *     with any `access` other than `Protected` answers 400.
+     * Update a Pen
+     * @description Only the keys given change; an empty body returns the Pen unchanged.
+     *     The metadata is saved first and the access change second, so a refused
+     *     access change leaves the metadata saved.
      */
-    patch: operations['updatePen'];
+    patch: operations['penUpdate'];
     trace?: never;
   };
-  '/pens/{id}/fork': {
+  '/v2/pens/{id}/fork': {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
          * @example 01a08738-73f0-7847-b6a8-5789d289c158
          */
-        id: components['parameters']['PenId'];
+        id: components['parameters']['penId'];
       };
       cookie?: never;
     };
     get?: never;
     put?: never;
     /**
-     * Fork one of your 2.0 Pens
-     * @description Copies one of your 2.0 Pens and builds the copy. The copy keeps the original's title,
-     *     description, tags and access unless given. A fork of a `Protected` Pen is `Protected` too, so
-     *     it needs a `password`. Counts against the daily Pen create allowance, shared with creates.
+     * Fork a Pen
+     * @description Copies one of the key owner's Pens. The copy keeps the original's
+     *     title, description, tags and access unless given; a fork of a
+     *     Protected Pen needs a `password`.
      */
-    post: operations['forkPen'];
+    post: operations['penFork'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/pens/{id}/settings': {
+  '/v2/pens/{id}/files': {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
          * @example 01a08738-73f0-7847-b6a8-5789d289c158
          */
-        id: components['parameters']['PenId'];
-      };
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    /**
-     * Update a Pen's editor settings
-     * @description Changes only the keys given. Makes no version and no build.
-     */
-    patch: operations['updatePenSettings'];
-    trace?: never;
-  };
-  '/pens/{id}/files': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /**
-         * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
-         * @example 01a08738-73f0-7847-b6a8-5789d289c158
-         */
-        id: components['parameters']['PenId'];
+        id: components['parameters']['penId'];
       };
       cookie?: never;
     };
     /**
-     * List the saved head's files
-     * @description Every source file in the Pen's saved head, with content. Not paged. For a Classic Pen these
-     *     are its panels as files, built on read, with `url` null.
+     * List a Pen's files
+     * @description The files of the saved head, with `content`.
      */
-    get: operations['listPenFiles'];
+    get: operations['penFiles'];
     /**
-     * Apply several file changes as one version
-     * @description Applies a list of file changes, in order, as one new version and builds it. Each change
-     *     writes, moves or deletes one file (or every file under a directory). Binary files go up as
-     *     parts of a multipart request, each one more change applied after those in `changes`.
+     * Write files as one version
+     * @description Applies `files` changes, in order, as one saved version and builds it.
+     *     Each change addresses a file by `path` or `id`:
      *
-     *     The response is the newest version the write produced, with its source files, and that
-     *     version's build. See *Writes and builds* above before writing again.
+     *     | Change | Effect |
+     *     | --- | --- |
+     *     | `{ path, content }` | Writes the file at `path`, creating it if needed. |
+     *     | `{ id, content }` | Writes the file with that id, wherever it is. |
+     *     | `{ id, path }` | Moves the file to `path`; it keeps its id. Add `content` to write there too. |
+     *     | `{ path, delete: true }` | Deletes the file, or every file under a directory path. |
+     *     | `{ id, delete: true }` | Deletes the file with that id. |
+     *
+     *     Binary files go up as parts of a multipart form, each one more change
+     *     applied after those in `changes`.
      */
-    put: operations['writePenFiles'];
+    put: operations['penFilesWrite'];
     post?: never;
     delete?: never;
     options?: never;
     head?: never;
-    patch?: never;
+    /**
+     * Edit files with hunks
+     * @description Changes text files without resending them. Each hunk names a file and
+     *     replaces `old`, text that appears in it exactly once, with `new`. Hunks
+     *     are applied in order, each against the result of the ones before it,
+     *     and every file they touch is written as one saved version.
+     *
+     *     A hunk whose `old` matches nowhere byte for byte, but matches exactly
+     *     one run of whole lines once leading indentation is ignored, is applied
+     *     to those lines and `new` is re-indented to match.
+     *
+     *     Nothing is applied by halves: one hunk that cannot be applied fails the
+     *     whole write with `400 BAD_USER_INPUT`, `field` `edits`, and
+     *     `details.misses` listing every miss (`index`, `path`, `reason` of
+     *     `NotFound`, `Ambiguous` or `NoSuchFile`, and `matches`, `lines` or
+     *     `nearest` to retry with). A set of hunks that changes nothing is
+     *     refused.
+     */
+    patch: operations['penFilesEdit'];
     trace?: never;
   };
-  '/pens/{id}/files/{path}': {
+  '/v2/pens/{id}/files/{path}': {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
          * @example 01a08738-73f0-7847-b6a8-5789d289c158
          */
-        id: components['parameters']['PenId'];
+        id: components['parameters']['penId'];
         /**
-         * @description The file's full path inside the Pen without its leading `/`, slashes included and
-         *     unencoded: `/pens/{id}/files/src/app.js` addresses `/src/app.js`. On a delete, a directory
-         *     path addresses every file under it.
+         * @description The file's full path in the Pen, without the leading `/`. Its
+         *     slashes may be sent as they are (`src/app.js`) or encoded
+         *     (`src%2Fapp.js`, as OpenAPI clients encode a path parameter).
          * @example src/app.js
          */
-        path: components['parameters']['FilePath'];
+        path: components['parameters']['filePath'];
       };
       cookie?: never;
     };
     /**
      * Get one file
-     * @description One file from the saved head, with `content` (null for binary files) and `url`.
+     * @description One file of the saved head, with `content` and `url`. Paths match without regard to case.
      */
-    get: operations['getPenFile'];
+    get: operations['penFile'];
     /**
      * Write one file
-     * @description Writes the file at `path`, creating it if needed: text as JSON `content`, or any file as a
-     *     multipart part named `file`. Saves a new version and builds it.
+     * @description Writes text `content` as JSON, or a multipart `file` part, at `path` as one saved version.
      */
-    put: operations['writePenFile'];
+    put: operations['penFileWrite'];
     post?: never;
     /**
      * Delete one file or a directory
-     * @description Deletes the file at `path`, or every file under it when `path` is a directory. Saves a new
-     *     version and builds it, so it answers like any other write rather than 204.
+     * @description A directory path deletes every file under it. The answer is the new
+     *     version, not `204`. Deleting by id goes through `PUT /v2/pens/{id}/files`
+     *     with `{ "id": "...", "delete": true }`.
      */
-    delete: operations['deletePenFile'];
+    delete: operations['penFileDelete'];
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/pens/{id}/versions': {
+  '/v2/pens/{id}/versions': {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
          * @example 01a08738-73f0-7847-b6a8-5789d289c158
          */
-        id: components['parameters']['PenId'];
+        id: components['parameters']['penId'];
       };
       cookie?: never;
     };
     /**
      * List a Pen's saved versions
-     * @description Saved versions, paged, each with its build. Files are left out; 2.0 Pens only.
+     * @description Saved versions, each with its `build` and without `files`. Versions
+     *     never change once saved, so `updated` sorts them like `created`. A Pen
+     *     made in the classic editor has none.
      */
-    get: operations['listPenVersions'];
+    get: operations['penVersions'];
     put?: never;
     post?: never;
     delete?: never;
@@ -229,57 +240,55 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/pens/{id}/versions/{version_id}/restore': {
+  '/v2/pens/{id}/versions/{version_id}/restore': {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
          * @example 01a08738-73f0-7847-b6a8-5789d289c158
          */
-        id: components['parameters']['PenId'];
-        /**
-         * @description The cpid of the version to copy to the head.
-         * @example 01a08738-73f0-7848-b8bf-e8e7e91b1ae2
-         */
-        version_id: components['parameters']['RestoreVersionId'];
+        id: components['parameters']['penId'];
+        /** @description The id of the version to copy to the head. */
+        version_id: string;
       };
       cookie?: never;
     };
     get?: never;
     put?: never;
     /**
-     * Restore an older version to the head
-     * @description Copies an older version to the head. The one write that does not build: the restored version
-     *     keeps the build of the version it copied.
+     * Restore an older version
+     * @description Copies the version to the head. The restored version keeps the build of
+     *     the version it copies; it is not built again.
      */
-    post: operations['restorePenVersion'];
+    post: operations['penVersionRestore'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/versions/{id}': {
+  '/v2/versions/{id}': {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The version's cpid.
+         * @description The version's id.
          * @example 01a08738-73f0-7848-b8bf-e8e7e91b1ae2
          */
-        id: components['parameters']['VersionId'];
+        id: components['parameters']['versionId'];
       };
       cookie?: never;
     };
     /**
-     * Get one version with its files
-     * @description One version with its source files and its build, including the build's compiled output when
-     *     the build succeeded.
+     * Get a version
+     * @description One version with its `files`, and its `build` with output files. A dry
+     *     run's unsaved version (`saved: false`) is readable here for 36 hours.
      */
-    get: operations['getVersion'];
+    get: operations['penVersion'];
     put?: never;
     post?: never;
     delete?: never;
@@ -288,26 +297,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/builds/{id}': {
+  '/v2/builds/{id}': {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The ID of the version the build belongs to; a version and its build share one ID.
-         * @example 01a08853-f1ab-7967-812e-eda134bd9e61
+         * @description The version's id.
+         * @example 01a08738-73f0-7848-b8bf-e8e7e91b1ae2
          */
-        id: components['parameters']['BuildId'];
+        id: components['parameters']['versionId'];
       };
       cookie?: never;
     };
     /**
      * Get a build
-     * @description A version's build, by the version's ID. Poll it while `status` is `Queued` or `Running`, and
-     *     follow `next_id` when it is `Canceled` with one; that next build answers `Running` until its
-     *     version is saved. Includes the compiled output when the build succeeded.
+     * @description A version's build, by the version's id: the write's `build.id`, or
+     *     `build.next_id` while the API is applying the compiler's changes (that
+     *     build is `Running` until its version is saved).
      */
-    get: operations['getBuild'];
+    get: operations['build'];
     put?: never;
     post?: never;
     delete?: never;
@@ -316,110 +325,210 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/pens/{id}/deployment': {
+  '/v2/pens/{id}/deployment': {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
          * @example 01a08738-73f0-7847-b6a8-5789d289c158
          */
-        id: components['parameters']['PenId'];
+        id: components['parameters']['penId'];
       };
       cookie?: never;
     };
     get?: never;
     /**
-     * Deploy a version
-     * @description Deploys `version_id`, by default the saved head, to the Pen's public URL.
+     * Deploy a Pen
+     * @description Deploys a saved version, the saved head unless `version_id` says otherwise, and answers the deployment.
      */
-    put: operations['deployPen'];
+    put: operations['penDeploy'];
     post?: never;
-    /** Take the deployment down */
-    delete: operations['undeployPen'];
+    /**
+     * Take the deployment down
+     * @description Takes the deployment down. The Pen and its versions stay as they are.
+     */
+    delete: operations['penUndeploy'];
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/pens/{id}/collaborators': {
+  '/v2/pens/{id}/domains': {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
          * @example 01a08738-73f0-7847-b6a8-5789d289c158
          */
-        id: components['parameters']['PenId'];
+        id: components['parameters']['penId'];
       };
       cookie?: never;
     };
     /**
-     * List a Pen's collaborators
-     * @description Everyone on the Pen, including its owner (role `Owner`). Not paged.
+     * List custom domains
+     * @description The deployment's custom domains, with their status and the DNS records to create.
      */
-    get: operations['listPenCollaborators'];
+    get: operations['penDomains'];
+    put?: never;
+    /**
+     * Add a custom domain
+     * @description Adds a custom domain to the Pen's deployment. The answer lists every custom domain, with the DNS records to create so the new one verifies.
+     */
+    post: operations['penDomainAdd'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v2/pens/{id}/domains/{host}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /**
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
+         * @example 01a08738-73f0-7847-b6a8-5789d289c158
+         */
+        id: components['parameters']['penId'];
+        /**
+         * @description The custom domain.
+         * @example www.example.com
+         */
+        host: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Remove a custom domain
+     * @description Removes a custom domain from the deployment. The answer lists the domains that remain.
+     */
+    delete: operations['penDomainRemove'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v2/pens/{id}/settings': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /**
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
+         * @example 01a08738-73f0-7847-b6a8-5789d289c158
+         */
+        id: components['parameters']['penId'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Update a Pen's settings
+     * @description Only the keys given change. The answer is the Pen's settings.
+     */
+    patch: operations['penSettingsUpdate'];
+    trace?: never;
+  };
+  '/v2/pens/{id}/collaborators': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /**
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
+         * @example 01a08738-73f0-7847-b6a8-5789d289c158
+         */
+        id: components['parameters']['penId'];
+      };
+      cookie?: never;
+    };
+    /**
+     * List collaborators
+     * @description The Pen's collaborators and their roles.
+     */
+    get: operations['penCollaborators'];
     put?: never;
     /**
      * Invite a collaborator
-     * @description Invites someone by email or username. Invites are a plan feature; over the plan's limit answers 403.
+     * @description Invites a CodePen user, by username or email, as an `Editor` or a `Viewer`. Invites count against the owner's plan. The answer is the pending invitations.
      */
-    post: operations['invitePenCollaborator'];
+    post: operations['collaboratorInvite'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/pens/{id}/collaborators/{username}': {
+  '/v2/pens/{id}/collaborators/{username}': {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
          * @example 01a08738-73f0-7847-b6a8-5789d289c158
          */
-        id: components['parameters']['PenId'];
-        /**
-         * @description The collaborator's CodePen username.
-         * @example teammate
-         */
-        username: components['parameters']['Username'];
+        id: components['parameters']['penId'];
+        /** @description The collaborator's CodePen username. */
+        username: string;
       };
       cookie?: never;
     };
     get?: never;
     put?: never;
     post?: never;
-    /** Remove a collaborator */
-    delete: operations['removePenCollaborator'];
+    /**
+     * Remove a collaborator
+     * @description Removes a collaborator from the Pen.
+     */
+    delete: operations['collaboratorRemove'];
     options?: never;
     head?: never;
-    /** Change a collaborator's role */
-    patch: operations['updatePenCollaborator'];
+    /**
+     * Change a collaborator's role
+     * @description Changes a collaborator's role. The answer is the collaborators.
+     */
+    patch: operations['collaboratorUpdateRole'];
     trace?: never;
   };
-  '/pens/{id}/invites': {
+  '/v2/pens/{id}/invites': {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
          * @example 01a08738-73f0-7847-b6a8-5789d289c158
          */
-        id: components['parameters']['PenId'];
+        id: components['parameters']['penId'];
       };
       cookie?: never;
     };
     /**
      * List pending invitations
-     * @description Invitations not yet accepted. Not paged.
+     * @description Invitations sent and not yet accepted.
      */
-    get: operations['listPenInvites'];
+    get: operations['penInvites'];
     put?: never;
     post?: never;
     delete?: never;
@@ -428,77 +537,184 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/collections': {
+  '/v2/pens/{id}/restore': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /**
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
+         * @example 01a08738-73f0-7847-b6a8-5789d289c158
+         */
+        id: components['parameters']['penId'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Take a Pen out of the trash
+     * @description `id` is the trash item's `item_id`.
+     */
+    post: operations['penRestore'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v2/trash': {
     parameters: {
       query?: never;
       header?: never;
       path?: never;
       cookie?: never;
     };
-    /** List your Collections */
-    get: operations['listCollections'];
-    put?: never;
     /**
-     * Create a Collection
-     * @description Counts against the daily Collection create allowance.
+     * List the trash
+     * @description The key owner's Pens and Collections in the trash, newest deletion
+     *     first. Each is restorable until `expires_at`, three days after
+     *     deletion.
      */
-    post: operations['createCollection'];
+    get: operations['trash'];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/collections/{id}': {
+  '/v2/trash/pens/{id}': {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The Collection's hashid, the ID in `codepen.io/collection/<id>`.
-         * @example QbaoZL
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
+         * @example 01a08738-73f0-7847-b6a8-5789d289c158
          */
-        id: components['parameters']['CollectionId'];
+        id: components['parameters']['penId'];
       };
       cookie?: never;
     };
-    /** Get one Collection */
-    get: operations['getCollection'];
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Delete a trashed Pen for good
+     * @description A Pen that is not in the trash is refused.
+     */
+    delete: operations['penPurge'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v2/collections': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Collections
+     * @description The key owner's Collections, optionally filtered by `access`.
+     */
+    get: operations['collections'];
+    put?: never;
+    /**
+     * Create a Collection
+     * @description `Private` needs a PRO plan.
+     */
+    post: operations['collectionCreate'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v2/collections/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /**
+         * @description The Collection's hashid, the id in its URL.
+         * @example QbaoZL
+         */
+        id: components['parameters']['collectionId'];
+      };
+      cookie?: never;
+    };
+    /**
+     * Get a Collection
+     * @description One of the key owner's Collections.
+     */
+    get: operations['collection'];
     put?: never;
     post?: never;
     /**
      * Move a Collection to the trash
-     * @description Moves the Collection itself to the trash; the Pens in it are untouched. Listed under Deleted
-     *     Items on the site and restorable there for 3 days. Does not give back a daily create.
+     * @description Its Pens are untouched. Restorable for three days.
      */
-    delete: operations['deleteCollection'];
+    delete: operations['collectionDelete'];
     options?: never;
     head?: never;
     /**
      * Update a Collection
-     * @description Changes only the keys given.
+     * @description Only the keys given change; an empty body returns the Collection unchanged.
      */
-    patch: operations['updateCollection'];
+    patch: operations['collectionUpdate'];
     trace?: never;
   };
-  '/collections/{id}/pens': {
+  '/v2/collections/{id}/restore': {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The Collection's hashid, the ID in `codepen.io/collection/<id>`.
+         * @description The Collection's hashid, the id in its URL.
          * @example QbaoZL
          */
-        id: components['parameters']['CollectionId'];
+        id: components['parameters']['collectionId'];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Take a Collection out of the trash
+     * @description `id` is the trash item's `item_id`.
+     */
+    post: operations['collectionRestore'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v2/collections/{id}/pens': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /**
+         * @description The Collection's hashid, the id in its URL.
+         * @example QbaoZL
+         */
+        id: components['parameters']['collectionId'];
       };
       cookie?: never;
     };
     /**
-     * List your Pens in a Collection
-     * @description Your Pens in the Collection, paged. Pens by other people are skipped.
+     * List a Collection's Pens
+     * @description The key owner's own Pens in the Collection, sorted by the Pens' own timestamps.
      */
-    get: operations['listCollectionPens'];
+    get: operations['collectionPens'];
     put?: never;
     post?: never;
     delete?: never;
@@ -507,42 +723,39 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/collections/{id}/pens/{pen_id}': {
+  '/v2/collections/{id}/pens/{pen_id}': {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The Collection's hashid, the ID in `codepen.io/collection/<id>`.
+         * @description The Collection's hashid, the id in its URL.
          * @example QbaoZL
          */
-        id: components['parameters']['CollectionId'];
-        /**
-         * @description The Pen's cpid or hashid.
-         * @example 01a08738-73f0-7847-b6a8-5789d289c158
-         */
-        pen_id: components['parameters']['CollectionPenId'];
+        id: components['parameters']['collectionId'];
+        /** @description The Pen's id (cpid or hashid) or a CodePen URL that names it. */
+        pen_id: string;
       };
       cookie?: never;
     };
     get?: never;
     /**
      * Add a Pen to a Collection
-     * @description Works for Classic Pens too.
+     * @description Adds one of the key owner's Pens to the Collection, including a Pen made in the classic editor. The answer is the Collection.
      */
-    put: operations['addPenToCollection'];
+    put: operations['collectionAddPen'];
     post?: never;
     /**
      * Remove a Pen from a Collection
-     * @description Removes the Pen from the Collection only; the Pen itself is untouched.
+     * @description Removes the Pen from the Collection. The Pen itself is untouched.
      */
-    delete: operations['removePenFromCollection'];
+    delete: operations['collectionRemovePen'];
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/assets': {
+  '/v2/assets': {
     parameters: {
       query?: never;
       header?: never;
@@ -550,25 +763,26 @@ export interface paths {
       cookie?: never;
     };
     /**
-     * List your Assets
-     * @description Your Assets, paged. `content` is left out.
+     * List Assets
+     * @description The files in the key owner's Asset storage, without `content`.
      */
-    get: operations['listAssets'];
+    get: operations['assets'];
     put?: never;
     /**
      * Add an Asset
-     * @description Adds a file to your Asset Hosting: a multipart part named `file` (and optional `filename`,
-     *     defaulting to the part's own), or for text, JSON `filename` and `content`. Counts against
-     *     the plan's per-file size and total storage (403 when over). A duplicate filename answers 400.
+     * @description A multipart `file` part (and `filename`, default the part's own
+     *     filename), or JSON `filename` and text `content`. Assets need a PRO
+     *     plan; new content counts against the plan's per-file size and total
+     *     storage.
      */
-    post: operations['createAsset'];
+    post: operations['assetCreate'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/assets/{id}': {
+  '/v2/assets/{id}': {
     parameters: {
       query?: never;
       header?: never;
@@ -577,32 +791,29 @@ export interface paths {
          * @description The Asset's hashid.
          * @example k7Ym0R
          */
-        id: components['parameters']['AssetId'];
+        id: components['parameters']['assetId'];
       };
       cookie?: never;
     };
     /**
-     * Get one Asset
-     * @description One Asset, with `content` for text files (SVG, HTML, CSS, Sass, JS, TS, JSON, Markdown,
-     *     plain text and similar). `content` is null for binary files, whose bytes are at `url`.
+     * Get an Asset
+     * @description One Asset, with a text Asset's `content`.
      */
-    get: operations['getAsset'];
+    get: operations['asset'];
     put?: never;
     post?: never;
     /**
      * Delete an Asset
-     * @description Deletes the Asset from storage. Unlike Pens and Collections, it does not go to a trash.
+     * @description Deletes the Asset from storage.
      */
-    delete: operations['deleteAsset'];
+    delete: operations['assetDelete'];
     options?: never;
     head?: never;
     /**
      * Rename or replace an Asset
-     * @description Renames it (`filename`), replaces the file (JSON `content`, or a multipart part named
-     *     `file`), or both. A rename changes the Asset's `url`. New content counts against the plan's
-     *     per-file size and total storage (403 when over).
+     * @description A rename changes the Asset's `url`. JSON `content` is for text Assets only.
      */
-    patch: operations['updateAsset'];
+    patch: operations['assetUpdate'];
     trace?: never;
   };
 }
@@ -610,170 +821,75 @@ export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
     /**
-     * @description A Pen's cpid (2.0 Pens, a UUID) or hashid (Classic Pens, the slug in its URL).
-     * @example 01a08738-73f0-7847-b6a8-5789d289c158
-     * @example RNprEMR
-     */
-    PenId: string;
-    /**
-     * Format: uuid
-     * @description A version's cpid, which is also its build's ID.
-     * @example 01a08738-73f0-7848-b8bf-e8e7e91b1ae2
-     */
-    VersionId: string;
-    /**
-     * Format: uuid
-     * @description A file's stable ID. It survives renames and edits.
-     * @example 01a0884b-3177-71c3-a1c2-9452bfb9a3fb
-     */
-    FileId: string;
-    /**
-     * @description A short alphanumeric ID, as used for Collections, Assets and deployments.
-     * @example QbaoZL
-     */
-    HashId: string;
-    /**
-     * Format: date-time
-     * @description RFC 3339 in UTC. The fraction of a second varies in length and may be absent.
-     * @example 2026-09-09T22:23:39Z
-     * @example 2026-10-16T00:57:11.38331Z
-     */
-    Timestamp: string;
-    /**
-     * @description Seconds a write waits for its build before answering; 0 answers as soon as the files are saved.
-     * @default 45
-     */
-    Wait: number;
-    /**
-     * @description Tags, saved lowercased with spaces as dashes and punctuation dropped.
-     * @example [
-     *       "api",
-     *       "demo"
-     *     ]
-     */
-    Tags: string[];
-    /**
-     * @description The password for a Protected Pen, at least 8 characters. Write-only. Sent with any access
-     *     but `Protected` (and not on a Pen that already is) it answers 400.
-     */
-    Password: string;
-    /**
-     * @description Unique among your Assets; cannot contain `/` or `\`.
-     * @example logo.png
-     */
-    AssetFilename: string;
-    /**
-     * Format: binary
-     * @description A file uploaded as one part of a multipart form. At most 30 MB per file, 120 MB per request.
-     */
-    BinaryPart: string;
-    /**
-     * @description `Public`: listed on the site. `Private`: unlisted; anyone with the link can view.
-     *     `Protected`: private, and viewing needs a password. `Collaborators`: private, and only
-     *     collaborators can view. Anything but Public needs PRO. Accepted in any case.
+     * @description `Public`; `Private` (not listed on the site; anyone with the link can
+     *     view it); `Protected` (private and password protected); `Collaborators`
+     *     (private and for collaborators only). Anything but `Public` needs a PRO
+     *     plan.
      * @enum {string}
      */
     PenAccess: 'Public' | 'Private' | 'Protected' | 'Collaborators';
     /**
-     * @description Collections are Public or Private. Private needs PRO. Accepted in any case.
+     * @description `Private` needs a PRO plan.
      * @enum {string}
      */
     CollectionAccess: 'Public' | 'Private';
-    /**
-     * @description The editor that made the Pen. `Classic` Pens are read-only through the API.
-     * @enum {string}
-     */
-    Editor: 'V2' | 'Classic';
-    /**
-     * @description A collaborator's role on a Pen.
-     * @enum {string}
-     */
+    /** @enum {string} */
     Role: 'Owner' | 'Editor' | 'Viewer';
-    /**
-     * @description A role that can be given to a collaborator. Accepted in any case.
-     * @enum {string}
-     */
-    InviteRole: 'Editor' | 'Viewer';
-    /** @enum {string} */
-    IndentWith: 'spaces' | 'tabs';
-    /**
-     * @description `Queued`, `Running`: not done, keep polling. `Success`: done, with output files. `Failed`:
-     *     done with errors; the files are saved and nothing is retried. `Canceled`: the compiler asked
-     *     for changes; follow `next_id` if set, otherwise `patches` lists what is still required.
-     * @enum {string}
-     */
-    BuildStatus: 'Queued' | 'Running' | 'Success' | 'Failed' | 'Canceled';
-    /** @enum {string} */
-    DiagnosticType: 'Error' | 'Warning' | 'Information' | 'Hint';
-    /**
-     * @description `Build`: about the whole build. `BuildStep`: about one step of it. `File`: about one file.
-     * @enum {string}
-     */
-    DiagnosticScope: 'Build' | 'BuildStep' | 'File';
-    /** @enum {string} */
-    PatchType: 'create' | 'update' | 'delete';
-    /**
-     * @description Shared with the GraphQL API, where it is `errors[].extensions.code`.
-     * @enum {string}
-     */
-    ErrorCode:
-      | 'UNAUTHENTICATED'
-      | 'RATE_LIMITED'
-      | 'NOT_FOUND'
-      | 'FORBIDDEN'
-      | 'BAD_USER_INPUT'
-      | 'CONFLICT'
-      | 'INTERNAL';
-    /** @description The fields every Pen response has. Not used on its own; see Pen and PenWithBuild. */
-    PenBase: {
-      id: components['schemas']['PenId'];
+    /** @description At most 191 bytes, unique among the owner's Assets, without `/` or `\`. */
+    AssetFilename: string;
+    /** @description A file's bytes, as one part of a multipart form. */
+    Upload: string;
+    Pen: {
+      /** @description The cpid, or the hashid for a Pen made in the classic editor. */
+      id: string;
       title: string;
       description: string;
-      tags: components['schemas']['Tags'];
+      tags: string[];
       access: components['schemas']['PenAccess'];
-      /** @description Write-only, so always null. */
-      password: null;
-      /** @description Whether the Pen is a template. */
       template: boolean;
       popularity: number;
-      /** @description How many times the Pen has been loved. */
-      loves_count: number;
-      /** @description How many times the Pen has been viewed. */
+      /** @description Views as the site shows them, tallied in batches, so it can trail by a few minutes. */
       views_count: number;
-      editor: components['schemas']['Editor'];
-      created_at: components['schemas']['Timestamp'];
-      updated_at: components['schemas']['Timestamp'];
+      loves_count: number;
+      /**
+       * @description `V2`, or `Classic` for a Pen made in the classic editor, which is read-only through the API.
+       * @enum {string}
+       */
+      editor: 'Classic' | 'V2';
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      updated_at: string;
       urls: components['schemas']['PenUrls'];
-      /** @description Null for a 2.0 Pen with no saved version. */
+      /** @description Screenshots of the saved head; null for a Pen with no saved version. */
       screenshot_urls: components['schemas']['ScreenshotUrls'] | null;
-      /** @description The saved head, without files. Null for Classic Pens. */
+      /** @description The Pen's head, without `files`; null for a Pen made in the classic editor. */
       saved_version: components['schemas']['Version'] | null;
-      /** @description The current deployment, or null when the Pen is not deployed. */
       deployment: components['schemas']['Deployment'] | null;
-      settings: components['schemas']['PenSettings'];
-    };
-    /** @description A Pen. `id` is the cpid for 2.0 Pens and the hashid for Classic Pens. */
-    Pen: components['schemas']['PenBase'];
-    /** @description A Pen just made by a create or fork, with the build of its newest version. */
-    PenWithBuild: components['schemas']['PenBase'] & {
-      build: components['schemas']['BuildDetail'];
+      settings: components['schemas']['Settings'];
+      /**
+       * @description Only on `POST /v2/pens` and `POST /v2/pens/{id}/fork`: the first
+       *     version's build, or the converged version's when the compiler asked
+       *     for changes.
+       */
+      build?: components['schemas']['Build'] | null;
+      /** @description Write-only, so always null. */
+      password: null;
     };
     PenUrls: {
-      /**
-       * Format: uri
-       * @description The Pen in the editor.
-       */
+      /** Format: uri */
       editor: string;
       /**
        * Format: uri
-       * @description The saved head rendered on its own. 404s for Protected and Collaborators Pens, which need
-       *     a browser session. A deployed Pen's public URL is `deployment.url`.
+       * @description Renders the saved head on its own; 404s for Protected and
+       *     Collaborators Pens, which need a browser session.
        */
       preview: string;
     };
     /**
-     * @description JPEG screenshots of the saved head, 16:9, by width. Rendered on first request, so the first
-     *     fetch can take a few seconds. Protected and Collaborators Pens answer a not-found image.
+     * @description JPEG screenshots of the saved head, 16:9, by width. A screenshot is
+     *     rendered the first time it is requested, so the first fetch can take a
+     *     few seconds.
      */
     ScreenshotUrls: {
       /**
@@ -797,318 +913,456 @@ export interface components {
        */
       xlarge: string;
     };
-    /** @description The editor settings' fields. Not used on its own; see PenSettings and PenSettingsUpdate. */
-    PenSettingsFields: {
-      /** @description Deploy every new saved version automatically. */
-      auto_deploy?: boolean;
-      /** @description Rerun the preview as code changes. */
-      auto_run?: boolean;
-      /** @description Save in the editor as you type. */
-      auto_save?: boolean;
-      indent_with?: components['schemas']['IndentWith'];
-      tab_size?: number;
-    };
-    /** @description A Pen's editor settings. */
-    PenSettings: WithRequired<
-      components['schemas']['PenSettingsFields'],
-      'auto_deploy' | 'auto_run' | 'auto_save' | 'indent_with' | 'tab_size'
-    >;
-    Deployment: {
-      id: components['schemas']['HashId'];
-      version_id: components['schemas']['VersionId'];
+    Settings: {
+      auto_deploy: boolean;
+      auto_run: boolean;
+      auto_save: boolean;
       /**
-       * Format: uri
-       * @description The deployed Pen's public URL on `codepen.app`.
+       * @description `tabs` or `spaces`.
+       * @enum {string}
        */
-      url: string;
-      /** @description Custom domains serving the deployment. */
-      custom_domains: string[];
-      created_at: components['schemas']['Timestamp'];
-      updated_at: components['schemas']['Timestamp'];
+      indent_with: 'tabs' | 'spaces';
+      tab_size: number;
     };
-    /**
-     * @description A source file (in a version) or an output file (in a build). Output files' `url` is under
-     *     the version's `preview_url`.
-     */
     File: {
-      id: components['schemas']['FileId'];
-      /**
-       * @description The full path, starting with `/`.
-       * @example /src/app.js
-       */
+      /** @description Stable across versions, renames and edits. */
+      id: string;
+      /** @example /src/app.js */
       path: string;
-      /**
-       * @description The last segment of `path`.
-       * @example app.js
-       */
+      /** @example app.js */
       name: string;
-      /** @description Derived by the API; never sent. */
       content_hash: string;
       is_binary: boolean;
-      /** @description The text. Null for binary files, whose bytes are at `url`. */
+      bytes: number;
+      /** @description The media type the file is served with, from its extension. */
+      content_type: string;
+      /** @description Null for binary files, which are read from `url`. */
       content: string | null;
       /**
        * Format: uri
-       * @description Serves the file raw. Null for a Classic Pen's files, which are built on read.
+       * @description Where the file is served raw; null for the files of a Pen made in the classic editor.
        */
       url: string | null;
     };
-    /** @description The fields every version has. Not used on its own; see Version and VersionDetail. */
-    VersionBase: {
-      id: components['schemas']['VersionId'];
-      pen_id: components['schemas']['PenId'];
-      /** @description Derived by the API from the version's files. */
+    Version: {
+      id: string;
+      pen_id: string;
       hash: string;
-      created_at: components['schemas']['Timestamp'];
-      /** @description Whether this version is the deployed one. */
+      /** Format: date-time */
+      created_at: string;
       deployed: boolean;
+      /** @description False only for a dry run's unsaved version. */
+      saved: boolean;
+      label: string | null;
+      build: components['schemas']['Build'] | null;
       /**
        * Format: uri
-       * @description Serves this version's build output.
+       * @description Null for a dry run's version, or when the key cannot read the Pen.
        */
-      preview_url: string;
-    };
-    /** @description A saved version without files, as in lists and `saved_version`. */
-    Version: components['schemas']['VersionBase'] & {
-      build: components['schemas']['Build'];
-    };
-    /** @description A version with its source files, and its build with the compiled output. */
-    VersionDetail: components['schemas']['VersionBase'] & {
-      build: components['schemas']['BuildDetail'];
-      /** @description The version's source files. */
-      files: components['schemas']['File'][];
-    };
-    /** @description The fields every build has. Not used on its own; see Build and BuildDetail. */
-    BuildBase: {
-      id: components['schemas']['VersionId'];
-      status: components['schemas']['BuildStatus'];
-      /** @description Null before the build starts, and on some older builds. */
-      started_at: components['schemas']['Timestamp'] | null;
-      /** @description Null until the build ends, and on some older builds. */
-      ended_at: components['schemas']['Timestamp'] | null;
-      /** @description Compiler builds it took to get here, counted from the version written. 1 when no changes were needed. */
-      rounds: number;
-      /** @description Everything the final build reported. */
-      diagnostics: components['schemas']['Diagnostic'][];
-      /** @description The diagnostics whose type is Error, as a shortcut. */
-      errors: components['schemas']['Diagnostic'][];
-      /** @description Changes the API made to the files for the compiler. The version's files already include them. */
-      applied_patches: components['schemas']['Patch'][];
-      /** @description Changes the compiler still requires. Empty unless status is Canceled. */
-      patches: components['schemas']['Patch'][];
-      /** @description The version the build belongs to. Null while that version is still being put together. */
-      version_id: components['schemas']['VersionId'] | null;
-      /** @description Set on a Canceled build while the API applies the compiler's changes; poll that build next. */
-      next_id: components['schemas']['VersionId'] | null;
-      /** @description On the patched version's build, the version that was written. */
-      previous_id: components['schemas']['VersionId'] | null;
-    };
-    /** @description A build without its output files, as in lists and `saved_version`. */
-    Build: components['schemas']['BuildBase'];
-    /** @description A build with its compiled output, which is present only when the build succeeded. */
-    BuildDetail: components['schemas']['BuildBase'] & {
-      /** @description The compiled output. Present only when status is Success. */
+      preview_url: string | null;
+      /** @description The version's source files; only on `GET /v2/versions/{id}` and the file writes. */
       files?: components['schemas']['File'][];
     };
-    Diagnostic: {
-      type: components['schemas']['DiagnosticType'];
-      scope: components['schemas']['DiagnosticScope'];
+    Build: {
+      /** @description The version's id, before and after the version is saved. */
+      id: string;
+      /**
+       * @description `Canceled` means changes are still required; see `patches` and `next_id`.
+       * @enum {string}
+       */
+      status: 'Queued' | 'Running' | 'Success' | 'Failed' | 'Canceled';
+      /** Format: date-time */
+      started_at: string | null;
+      /** Format: date-time */
+      ended_at: string | null;
+      /** @description How many compiler builds it took, counted from the version the caller wrote. */
+      rounds: number;
+      /** @description Every diagnostic of the final build. */
+      diagnostics: components['schemas']['BuildDiagnostic'][];
+      /** @description The diagnostics with `type` `Error`. */
+      errors: components['schemas']['BuildDiagnostic'][];
+      /** @description Changes the API applied to the caller's files on the compiler's behalf. */
+      applied_patches: components['schemas']['BuildPatch'][];
+      /** @description Changes the compiler still requires. */
+      patches: components['schemas']['BuildPatch'][];
+      /**
+       * @description The compiled output served under the version's `preview_url`. On
+       *     the single version and build endpoints and the writes, and only
+       *     when the build succeeded.
+       */
+      files?: components['schemas']['File'][];
+      /** @description Null while the version is still being converged. */
+      version_id: string | null;
+      /** @description The build applying this one's patches. */
+      next_id: string | null;
+      /** @description The caller's build this one was converged from. */
+      previous_id: string | null;
+    };
+    BuildDiagnostic: {
+      /** @enum {string} */
+      type: 'Error' | 'Warning' | 'Information' | 'Hint' | 'Patch';
+      /** @enum {string} */
+      scope: 'Build' | 'BuildStep' | 'File';
       message: string;
-      /**
-       * @description The tool's own diagnostic code, such as a TypeScript error number.
-       * @example 2347
-       */
       code: string | null;
-      /** Format: uri */
       url: string | null;
-      /**
-       * @description The compiler block that reported it.
-       * @example typescript-5
-       */
       block_name: string | null;
-      /**
-       * @description The Pen file it is about. A diagnostic about something outside the Pen's files can carry
-       *     a compiler-side path instead, such as `/cpfs/pens/…/src`.
-       */
       path: string | null;
-      /**
-       * @description The file it is about, or null. A diagnostic about something outside the Pen's files (for
-       *     example a `tsconfig.json` option the compiler rejects) can carry an empty string.
-       */
-      file_id: components['schemas']['FileId'] | null | '';
-      range: components['schemas']['DiagnosticRange'] | null;
+      file_id: string | null;
+      range: components['schemas']['FileRange'] | null;
     };
-    DiagnosticRange: {
-      start: components['schemas']['DiagnosticPosition'];
-      end: components['schemas']['DiagnosticPosition'] | null;
+    FileRange: {
+      start: components['schemas']['FileLocation'];
+      end: components['schemas']['FileLocation'] | null;
     };
-    DiagnosticPosition: {
+    FileLocation: {
       line: number;
       column: number;
-      /** @description Character offset into the file. */
-      position?: number;
+      position: number | null;
     };
-    /**
-     * @description A change to the source files. `update` and `delete` carry the `file_id` of the file they
-     *     change; `delete` has no content.
-     */
-    Patch: {
-      type: components['schemas']['PatchType'];
+    BuildPatch: {
+      /**
+       * @description `create`, `update` or `delete`.
+       * @enum {string}
+       */
+      type: 'create' | 'update' | 'delete';
       path: string;
-      file_id: components['schemas']['FileId'] | null;
-      content?: string | null;
+      /** @description Set for `update` and `delete`. */
+      file_id: string | null;
+      /** @description Set for `create` and `update`. */
+      content: string | null;
     };
-    /** @description The answer to every write of a Pen's files. */
-    WriteResult: {
-      pen: components['schemas']['Pen'];
-      version: components['schemas']['VersionDetail'];
-      build: components['schemas']['BuildDetail'];
+    FilesWriteResult: {
+      pen: components['schemas']['Pen'] | null;
+      version: components['schemas']['Version'] | null;
+      build: components['schemas']['Build'] | null;
+    };
+    Deployment: {
+      id: string;
+      version_id: string;
+      /** Format: uri */
+      url: string;
+      custom_domains: string[];
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      updated_at: string;
+    };
+    PenDomain: {
+      id: string;
+      host: string;
+      /** @enum {string} */
+      status: 'Pending' | 'Verified' | 'Misconfigured';
+      /** @description The records to create for the host to verify. */
+      dns: components['schemas']['DnsRecord'][];
+      /** @description What the last lookup found for the CNAME record, such as `None`, `Valid`, `Legacy` or `Invalid`. */
+      cname_record: string;
+      /** @description What the last lookup found for the A record, such as `None`, `Valid`, `Legacy` or `Invalid`. */
+      a_record: string;
+      /** Format: date-time */
+      created_at: string;
+    };
+    DnsRecord: {
+      /** @example CNAME */
+      type: string;
+      /** @example www */
+      name: string;
+      /** @example custom.codepen.app */
+      value: string;
     };
     Collaborator: {
       username: string;
-      /** @description Display name. */
       name: string;
       role: components['schemas']['Role'];
       is_team_member: boolean;
     };
-    CollaboratorList: components['schemas']['Collaborator'][];
-    /** @description A pending invitation. One of `email` and `username` is set. */
-    Invite: {
+    /** @description One of `email` and `username` is set. */
+    CollaboratorInvite: {
       id: string;
-      /** Format: email */
       email: string | null;
       username: string | null;
       role: components['schemas']['InviteRole'];
-      created_at: components['schemas']['Timestamp'];
+      /** Format: date-time */
+      created_at: string;
     };
-    InviteList: components['schemas']['Invite'][];
     Collection: {
-      id: components['schemas']['HashId'];
+      id: string;
       title: string;
       description: string;
       access: components['schemas']['CollectionAccess'];
-      /** @description How many Pens the Collection holds. */
       items_count: number;
       popularity: number;
-      created_at: components['schemas']['Timestamp'];
-      updated_at: components['schemas']['Timestamp'];
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      updated_at: string;
       /** Format: uri */
       url: string;
     };
-    /** @description The fields every Asset has. Not used on its own; see Asset and AssetDetail. */
-    AssetBase: {
-      id: components['schemas']['HashId'];
-      filename: components['schemas']['AssetFilename'];
-      /**
-       * Format: uri
-       * @description Where the file is served. Changes when the Asset is renamed.
-       */
+    Asset: {
+      id: string;
+      filename: string;
+      /** Format: uri */
       url: string;
+      /**
+       * @description Text Assets are those with a text extension: SVG,
+       *     HTML/HAML/Pug/Slim/Markdown, CSS/Sass/SCSS/Less/Stylus,
+       *     JS/JSX/TS/TSX/CoffeeScript/JSON/source maps, Vue, GLSL and plain
+       *     text. Everything else is binary.
+       */
       is_binary: boolean;
-      created_at: components['schemas']['Timestamp'];
-      updated_at: components['schemas']['Timestamp'];
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      updated_at: string;
     };
-    /** @description An Asset without content, as in lists and write responses. */
-    Asset: components['schemas']['AssetBase'];
-    /** @description An Asset with `content` for text files. */
-    AssetDetail: components['schemas']['AssetBase'] & {
-      /** @description The text of a text Asset; null for binary ones. */
+    AssetWithContent: {
+      id: string;
+      filename: string;
+      /** Format: uri */
+      url: string;
+      /**
+       * @description Text Assets are those with a text extension: SVG,
+       *     HTML/HAML/Pug/Slim/Markdown, CSS/Sass/SCSS/Less/Stylus,
+       *     JS/JSX/TS/TSX/CoffeeScript/JSON/source maps, Vue, GLSL and plain
+       *     text. Everything else is binary.
+       */
+      is_binary: boolean;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      updated_at: string;
+      /** @description A text Asset's content; null for a binary one, whose bytes are served at `url`. */
       content: string | null;
     };
-    /** @description Every error body. Not used on its own; each status has its own schema fixing `code`. */
-    Error: {
-      /** @description What went wrong. For plan limits, names the limit and links to pricing when a bigger plan lifts it. */
-      message: string;
-      code: components['schemas']['ErrorCode'];
+    TrashItem: {
+      id: string;
+      /** @enum {string} */
+      type: 'Pen' | 'Collection';
+      /** @description The Pen's or Collection's id, for the restore endpoints. */
+      item_id: string;
+      title: string;
+      /** Format: date-time */
+      deleted_at: string;
+      /** Format: date-time */
+      expires_at: string;
     };
-    BadUserInputError: components['schemas']['Error'] & {
-      /** @constant */
-      code: 'BAD_USER_INPUT';
+    /** @description The v1 error body, answered for a path that is not an endpoint. */
+    RouteNotFoundError: {
+      /** @example not found */
+      error: string;
     };
-    UnauthenticatedError: components['schemas']['Error'] & {
-      /** @constant */
-      code: 'UNAUTHENTICATED';
+    PenFileRequest: {
+      /** @example index.html */
+      path: string;
+      /** @description Text only; binary files go up as multipart parts. */
+      content: string;
     };
-    ForbiddenError: components['schemas']['Error'] & {
-      /** @constant */
-      code: 'FORBIDDEN';
+    PenCreateRequest: {
+      /** @default Untitled */
+      title: string;
+      description?: string;
+      tags?: string[];
+      access?: components['schemas']['PenAccess'];
+      /** @description Required with `Protected` access, and refused with any other. */
+      password?: string;
+      template?: boolean;
+      /** @description Starter files when omitted. */
+      files?: components['schemas']['PenFileRequest'][];
+      wait?: components['schemas']['Wait'];
     };
-    NotFoundError: components['schemas']['Error'] & {
-      /** @constant */
-      code: 'NOT_FOUND';
-    };
-    ConflictError: components['schemas']['Error'] & {
-      /** @constant */
-      code: 'CONFLICT';
-      expected_version_id: components['schemas']['VersionId'];
-      current_version_id: components['schemas']['VersionId'];
-    };
-    RateLimitedError: components['schemas']['Error'] & {
-      /** @constant */
-      code: 'RATE_LIMITED';
-    };
-    InternalError: components['schemas']['Error'] & {
-      /** @constant */
-      code: 'INTERNAL';
-    };
-    /** @description Details shared by creates, forks and updates. Not used on its own. */
-    PenDetailsInput: {
+    PenUpdateRequest: {
       title?: string;
       description?: string;
-      tags?: components['schemas']['Tags'];
-      access?: components['schemas']['PenAccess'];
-      password?: components['schemas']['Password'];
-    };
-    /**
-     * @description A new 2.0 Pen. `title` defaults to "Untitled", `access` to the account's default privacy,
-     *     and `files` to starter files.
-     */
-    PenCreate: components['schemas']['PenDetailsInput'] & {
-      /** @description The Pen's initial text files. Binary files go as multipart parts. */
-      files?: components['schemas']['FileWriteByPath'][];
-      wait?: components['schemas']['Wait'];
-    };
-    /** @description `pen` is the JSON body; every other part is one file, named by its path (for example `/img/logo.png`). */
-    PenCreateMultipart: {
-      pen?: components['schemas']['PenCreate'];
-    } & {
-      [key: string]: components['schemas']['BinaryPart'];
-    };
-    /** @description Overrides for the copy. Anything left out keeps the original's value. */
-    PenFork: components['schemas']['PenDetailsInput'] & {
-      wait?: components['schemas']['Wait'];
-    };
-    /** @description The details to change. Only the keys given change; `tags` replaces the whole list. */
-    PenUpdate: components['schemas']['PenDetailsInput'] & {
-      /** @description Whether the Pen is a template. */
+      /** @description Replaces the whole list. */
+      tags?: string[];
       template?: boolean;
+      access?: components['schemas']['PenAccess'];
+      /**
+       * @description Required when changing to `Protected`. On a Pen that is already
+       *     Protected, `password` alone replaces the password.
+       */
+      password?: string;
     };
-    /** @description The settings to change. */
-    PenSettingsUpdate: components['schemas']['PenSettingsFields'];
+    PenForkRequest: {
+      title?: string;
+      description?: string;
+      tags?: string[];
+      access?: components['schemas']['PenAccess'];
+      password?: string;
+      wait?: components['schemas']['Wait'];
+    };
+    /** @description Seconds to wait for the build (default 45, at most 75; `0` answers as soon as the files are saved). */
+    Wait: number;
+    FilesWriteRequest: {
+      /**
+       * @description The `saved_version.id` the change was built on. The write is refused
+       *     with `409` if the Pen's head has moved since.
+       */
+      expected_version_id?: string;
+      wait?: components['schemas']['Wait'];
+      /**
+       * @description Build the proposed files without saving them. The head does not
+       *     move, and the answer's `version` has `saved: false`; it stays
+       *     readable at `GET /v2/versions/{id}` for 36 hours.
+       * @default false
+       */
+      dry_run: boolean;
+      files?: components['schemas']['FileChange'][];
+      /** @description Names the saved version. */
+      label?: string;
+    };
+    FilesEditRequest: {
+      /**
+       * @description The `saved_version.id` the change was built on. The write is refused
+       *     with `409` if the Pen's head has moved since.
+       */
+      expected_version_id?: string;
+      wait?: components['schemas']['Wait'];
+      /**
+       * @description Build the proposed files without saving them. The head does not
+       *     move, and the answer's `version` has `saved: false`; it stays
+       *     readable at `GET /v2/versions/{id}` for 36 hours.
+       * @default false
+       */
+      dry_run: boolean;
+      edits: components['schemas']['FileEdit'][];
+      /** @description Names the saved version. */
+      label?: string;
+    };
+    FileWriteRequest: {
+      /**
+       * @description The `saved_version.id` the change was built on. The write is refused
+       *     with `409` if the Pen's head has moved since.
+       */
+      expected_version_id?: string;
+      wait?: components['schemas']['Wait'];
+      /**
+       * @description Build the proposed files without saving them. The head does not
+       *     move, and the answer's `version` has `saved: false`; it stays
+       *     readable at `GET /v2/versions/{id}` for 36 hours.
+       * @default false
+       */
+      dry_run: boolean;
+      /** @description Text only; send a binary file as a multipart `file` part. */
+      content: string;
+    };
+    DeployRequest: {
+      /** @description The version to deploy; the saved head when omitted. */
+      version_id?: string;
+    };
+    DomainAddRequest: {
+      /** @example www.example.com */
+      host: string;
+    };
+    SettingsUpdateRequest: {
+      auto_deploy?: boolean;
+      auto_run?: boolean;
+      auto_save?: boolean;
+      /** @enum {string} */
+      indent_with?: 'tabs' | 'spaces';
+      tab_size?: number;
+    };
+    CollaboratorInviteRequest: {
+      email_or_username: string;
+      /** @enum {string} */
+      role: 'Editor' | 'Viewer';
+    };
+    RoleUpdateRequest: {
+      /** @enum {string} */
+      role: 'Editor' | 'Viewer';
+    };
+    CollectionCreateRequest: {
+      title: string;
+      description?: string;
+      access?: components['schemas']['CollectionAccess'];
+    };
+    CollectionRequest: {
+      title?: string;
+      description?: string;
+      access?: components['schemas']['CollectionAccess'];
+    };
+    AssetRequest: {
+      filename?: components['schemas']['AssetFilename'];
+      /** @description Text Assets only; send binary files as a multipart `file` part. */
+      content?: string;
+    };
     /**
-     * @description One change in a multi-file write, addressing a file by `path` or by `id`. Changes apply in
-     *     order. Paths get a leading `/` if missing.
+     * @description A role that can be given to a collaborator.
+     * @enum {string}
      */
-    FileChange:
-      | components['schemas']['FileWriteByPath']
-      | components['schemas']['FileWriteById']
-      | components['schemas']['FileMoveById']
-      | components['schemas']['FileDeleteByPath']
-      | components['schemas']['FileDeleteById'];
+    InviteRole: 'Editor' | 'Viewer';
+    /** @description A Pen just made by a create or fork, with the build of its newest version. */
+    PenWithBuild: {
+      /** @description The cpid, or the hashid for a Pen made in the classic editor. */
+      id: string;
+      title: string;
+      description: string;
+      tags: string[];
+      access: components['schemas']['PenAccess'];
+      template: boolean;
+      popularity: number;
+      /** @description Views as the site shows them, tallied in batches, so it can trail by a few minutes. */
+      views_count: number;
+      loves_count: number;
+      /**
+       * @description `V2`, or `Classic` for a Pen made in the classic editor, which is read-only through the API.
+       * @enum {string}
+       */
+      editor: 'Classic' | 'V2';
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      updated_at: string;
+      urls: components['schemas']['PenUrls'];
+      /** @description Screenshots of the saved head; null for a Pen with no saved version. */
+      screenshot_urls: components['schemas']['ScreenshotUrls'] | null;
+      /** @description The Pen's head, without `files`; null for a Pen made in the classic editor. */
+      saved_version: components['schemas']['Version'] | null;
+      deployment: components['schemas']['Deployment'] | null;
+      settings: components['schemas']['Settings'];
+      /**
+       * @description Only on `POST /v2/pens` and `POST /v2/pens/{id}/fork`: the first
+       *     version's build, or the converged version's when the compiler asked
+       *     for changes.
+       */
+      build: components['schemas']['Build'] | null;
+      /** @description Write-only, so always null. */
+      password: null;
+    };
+    /** @description One version with its source files. */
+    VersionDetail: {
+      id: string;
+      pen_id: string;
+      hash: string;
+      /** Format: date-time */
+      created_at: string;
+      deployed: boolean;
+      /** @description False only for a dry run's unsaved version. */
+      saved: boolean;
+      label: string | null;
+      build: components['schemas']['Build'] | null;
+      /**
+       * Format: uri
+       * @description Null for a dry run's version, or when the key cannot read the Pen.
+       */
+      preview_url: string | null;
+      /** @description The version's source files; only on `GET /v2/versions/{id}` and the file writes. */
+      files: components['schemas']['File'][];
+    };
     /** @description Writes the file at `path`, creating it if needed. */
     FileWriteByPath: {
-      /** @example index.html */
       path: string;
       content: string;
     };
-    /** @description Writes the file with that ID, wherever it is. */
+    /** @description Writes the file with that id, wherever it is. */
     FileWriteById: {
-      id: components['schemas']['FileId'];
+      id: string;
       content: string;
     };
-    /** @description Moves the file with that ID to `path`, keeping its ID. With `content`, writes it there too. */
+    /** @description Moves the file with that id to `path`, keeping its id. With `content`, writes it there too. */
     FileMoveById: {
-      id: components['schemas']['FileId'];
+      id: string;
       path: string;
       content?: string;
     };
@@ -1118,124 +1372,212 @@ export interface components {
       /** @constant */
       delete: true;
     };
-    /** @description Deletes the file with that ID. */
+    /** @description Deletes the file with that id. */
     FileDeleteById: {
-      id: components['schemas']['FileId'];
+      id: string;
       /** @constant */
       delete: true;
     };
-    FilesWrite: {
-      expected_version_id?: components['schemas']['VersionId'];
+    /** @description One change in a multi-file write, addressing a file by `path` or `id`. */
+    FileChange:
+      | components['schemas']['FileWriteByPath']
+      | components['schemas']['FileWriteById']
+      | components['schemas']['FileMoveById']
+      | components['schemas']['FileDeleteByPath']
+      | components['schemas']['FileDeleteById'];
+    /** @description A hunk addressing a text file by id. */
+    FileEditById: {
+      id: string;
+      /** @description Text that appears in the file exactly once, byte for byte. */
+      old: string;
+      /** @description The replacement. An empty string deletes the matched text. */
+      new: string;
+      /** @description Replace every occurrence of `old` instead of requiring exactly one. */
+      replace_all?: boolean;
+    };
+    /** @description A hunk addressing a text file by its full path. */
+    FileEditByPath: {
+      path: string;
+      /** @description Text that appears in the file exactly once, byte for byte. */
+      old: string;
+      /** @description The replacement. An empty string deletes the matched text. */
+      new: string;
+      /** @description Replace every occurrence of `old` instead of requiring exactly one. */
+      replace_all?: boolean;
+    };
+    FileEdit: components['schemas']['FileEditById'] | components['schemas']['FileEditByPath'];
+    /** @description A multi-file write as JSON, which has no other parts to carry its changes. */
+    FilesWriteJsonRequest: {
+      /**
+       * @description The `saved_version.id` the change was built on. The write is refused
+       *     with `409` if the Pen's head has moved since.
+       */
+      expected_version_id?: string;
       wait?: components['schemas']['Wait'];
+      /**
+       * @description Build the proposed files without saving them. The head does not
+       *     move, and the answer's `version` has `saved: false`; it stays
+       *     readable at `GET /v2/versions/{id}` for 36 hours.
+       * @default false
+       */
+      dry_run: boolean;
       files: components['schemas']['FileChange'][];
+      /** @description Names the saved version. */
+      label?: string;
     };
-    /**
-     * @description `changes` is the JSON body. Every other part is one file, named by its path, and is one more
-     *     change applied after those in `changes`.
-     */
-    FilesWriteMultipart: {
-      changes?: components['schemas']['FilesWrite'];
-      expected_version_id?: components['schemas']['VersionId'];
-    } & {
-      [key: string]: components['schemas']['BinaryPart'];
-    };
-    FileWrite: {
-      /** @description The file's text. */
-      content: string;
-      expected_version_id?: components['schemas']['VersionId'];
-      wait?: components['schemas']['Wait'];
-    };
-    FileWriteMultipart: {
-      file: components['schemas']['BinaryPart'];
-      expected_version_id?: components['schemas']['VersionId'];
-    };
-    Deploy: {
-      /** @description The version to deploy. Defaults to the saved head. */
-      version_id?: components['schemas']['VersionId'];
-    };
-    CollaboratorInvite: {
-      email_or_username: string;
-      role: components['schemas']['InviteRole'];
-    };
-    CollaboratorUpdate: {
-      role: components['schemas']['InviteRole'];
-    };
-    /** @description Details shared by Collection creates and updates. Not used on its own. */
-    CollectionDetailsInput: {
-      title?: string;
-      description?: string;
-      access?: components['schemas']['CollectionAccess'];
-    };
-    CollectionCreate: components['schemas']['CollectionDetailsInput'];
-    /** @description Only the keys given change. */
-    CollectionUpdate: components['schemas']['CollectionDetailsInput'];
-    /** @description A text Asset sent as JSON. */
-    AssetCreate: {
+    /** @description A text Asset as JSON. */
+    AssetCreateRequest: {
       filename: components['schemas']['AssetFilename'];
+      /** @description Text Assets only; send binary files as a multipart `file` part. */
       content: string;
     };
-    AssetCreateMultipart: {
-      file: components['schemas']['BinaryPart'];
-      /** @description Defaults to the part's own filename. */
-      filename?: components['schemas']['AssetFilename'];
+    BadUserInputError: {
+      message: string;
+      /** @constant */
+      code: 'BAD_USER_INPUT';
+      /** @description The argument it is about, when known. */
+      field?: string;
+      /** @description Structured detail, such as the `misses` of a hunk edit. */
+      details?: {
+        [key: string]: unknown;
+      };
     };
-    AssetUpdate: {
-      filename?: components['schemas']['AssetFilename'];
-      /** @description New text content. */
-      content?: string;
+    UnauthenticatedError: {
+      message: string;
+      /** @constant */
+      code: 'UNAUTHENTICATED';
     };
-    AssetUpdateMultipart: {
-      file?: components['schemas']['BinaryPart'];
-      filename?: components['schemas']['AssetFilename'];
+    ForbiddenError: {
+      message: string;
+      /** @constant */
+      code: 'FORBIDDEN';
+    };
+    NotFoundError: {
+      message: string;
+      /** @constant */
+      code: 'NOT_FOUND';
+    };
+    ConflictError: {
+      message: string;
+      /** @constant */
+      code: 'CONFLICT';
+      expected_version_id: string;
+      current_version_id: string;
+    };
+    RateLimitedError: {
+      message: string;
+      /** @constant */
+      code: 'RATE_LIMITED';
+      /** @description Seconds until the counter resets. */
+      retry_after_seconds?: number;
+      /** @description The allowance. */
+      limit?: number;
+      /**
+       * Format: date-time
+       * @description When the counter resets, when known.
+       */
+      reset_at?: string | null;
+    };
+    InternalError: {
+      message: string;
+      /** @constant */
+      code: 'INTERNAL';
+    };
+    BuildTimeoutError: {
+      message: string;
+      /** @constant */
+      code: 'BUILD_TIMEOUT';
+      /** @description The build to poll when it has an id. */
+      build_id?: string;
     };
   };
   responses: {
-    /** @description Done. No body. */
-    NoContent: {
-      headers: {
-        [name: string]: unknown;
-      };
-      content?: never;
-    };
-    /**
-     * @description The write was saved. `version` is the newest version it produced, with its source files;
-     *     `build` is that version's build, with the compiled output when it succeeded. A build that
-     *     `Failed` is still a 200: the files are saved and `build.errors` say why they do not build.
-     */
-    WriteResult: {
+    /** @description The Pen, the newest version the write produced with its `files`, and that version's build. */
+    FilesWrite: {
       headers: {
         [name: string]: unknown;
       };
       content: {
-        'application/json': components['schemas']['WriteResult'];
+        'application/json': components['schemas']['FilesWriteResult'];
       };
     };
-    /**
-     * @description BAD_USER_INPUT: an invalid path, setting, access level or role; empty content; both content
-     *     and an upload for one file; an empty multipart part; a password with an access other than
-     *     Protected.
-     */
-    BadUserInput: {
+    /** @description The Collection. */
+    Collection: {
       headers: {
         [name: string]: unknown;
       };
       content: {
+        'application/json': components['schemas']['Collection'];
+      };
+    };
+    /** @description The collaborators. */
+    Collaborators: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        'application/json': components['schemas']['Collaborator'][];
+      };
+    };
+    /** @description The pending invitations. */
+    Invites: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        'application/json': components['schemas']['CollaboratorInvite'][];
+      };
+    };
+    /** @description The deployment's custom domains. */
+    Domains: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        'application/json': components['schemas']['PenDomain'][];
+      };
+    };
+    /**
+     * @description `BAD_USER_INPUT`: an invalid parameter, body, path, setting, access
+     *     level or role. `field` names the argument when known, and `details`
+     *     carries structured detail (the misses of `PATCH /v2/pens/{id}/files`).
+     */
+    BadRequest: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        /**
+         * @example {
+         *       "message": "per_page must be a positive number",
+         *       "code": "BAD_USER_INPUT"
+         *     }
+         */
         'application/json': components['schemas']['BadUserInputError'];
       };
     };
-    /** @description UNAUTHENTICATED. The key is missing or invalid, or its Team is not PRO. Do not retry; check the header or rotate the key. */
-    Unauthenticated: {
+    /** @description `UNAUTHENTICATED`: a missing or invalid key, a deleted owner, or a Team key for a Team that is not PRO. */
+    Unauthorized: {
       headers: {
+        /** @example Bearer realm="codepen" */
+        'WWW-Authenticate'?: string;
         [name: string]: unknown;
       };
       content: {
+        /**
+         * @example {
+         *       "message": "invalid or missing API key",
+         *       "code": "UNAUTHENTICATED"
+         *     }
+         */
         'application/json': components['schemas']['UnauthenticatedError'];
       };
     };
     /**
-     * @description FORBIDDEN: a write to a Classic Pen, or a plan limit (file count, file size, storage,
-     *     non-Public Pens or Collections, collaborator invites). When a bigger plan lifts the limit, the
-     *     message says so and links to pricing.
+     * @description `FORBIDDEN`: a write to a Pen made in the classic editor, or a plan
+     *     limit (non-Public access, a Private Collection, file size, storage,
+     *     collaborators). The message names the limit and, when a bigger plan
+     *     would lift it, where to upgrade.
      */
     Forbidden: {
       headers: {
@@ -1246,42 +1588,60 @@ export interface components {
       };
     };
     /**
-     * @description NOT_FOUND: no Pen, Collection, version, build, file, Asset or deployment with that ID, or one
-     *     that is not the key owner's. Other people's work answers this too, even when public.
+     * @description `NOT_FOUND`: no such item, or one that is not the key owner's, public
+     *     or not. A path that is not an endpoint at all answers `404` with the
+     *     v1 body `{ "error": "not found" }` instead.
      */
     NotFound: {
       headers: {
         [name: string]: unknown;
       };
       content: {
-        'application/json': components['schemas']['NotFoundError'];
+        'application/json':
+          components['schemas']['NotFoundError'] | components['schemas']['RouteNotFoundError'];
       };
     };
-    /**
-     * @description CONFLICT: `expected_version_id` is no longer the Pen's head. Read the files again and retry
-     *     from `current_version_id`.
-     */
+    /** @description `CONFLICT`: `expected_version_id` is no longer the Pen's head. Read the Pen again and retry. */
     Conflict: {
       headers: {
         [name: string]: unknown;
       };
       content: {
+        /**
+         * @example {
+         *       "message": "the Pen's head is 01a0...c5, not 01a0...99; read it again and retry",
+         *       "code": "CONFLICT",
+         *       "expected_version_id": "01a0...99",
+         *       "current_version_id": "01a0...c5"
+         *     }
+         */
         'application/json': components['schemas']['ConflictError'];
       };
     };
     /**
-     * @description RATE_LIMITED: over the hourly request limit, the daily read limit, or today's allowance of
-     *     Pens or Collections. Wait for the hour or day to pass; retrying sooner only fails again.
+     * @description `RATE_LIMITED`: the owner exceeded the plan's requests in an hour, its
+     *     reads today, or today's allowance of Pen or Collection creates. No
+     *     `Retry-After` or rate-limit headers are sent; the body carries
+     *     `retry_after_seconds`, `limit` and `reset_at`.
      */
     RateLimited: {
       headers: {
         [name: string]: unknown;
       };
       content: {
+        /**
+         * @example {
+         *       "message": "daily limit reached: the Free plan allows 3 Pens a day through the API. Upgrade to PRO for 50 a day at https://codepen.io/pricing",
+         *       "code": "RATE_LIMITED",
+         *       "retry_after_seconds": 51840,
+         *       "limit": 3,
+         *       "reset_at": "2026-10-28T09:00:00Z"
+         *     }
+         */
         'application/json': components['schemas']['RateLimitedError'];
       };
     };
-    /** @description INTERNAL. Something unexpected on CodePen's end; they are notified. */
+    /** @description `INTERNAL`: unexpected, and reported; the message is generic. */
     Internal: {
       headers: {
         [name: string]: unknown;
@@ -1290,255 +1650,148 @@ export interface components {
         'application/json': components['schemas']['InternalError'];
       };
     };
+    /**
+     * @description `BUILD_TIMEOUT`: a dry run's build did not finish inside `wait`, and
+     *     there is no saved version to poll. Retry with a longer `wait`.
+     */
+    BuildTimeout: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        'application/json': components['schemas']['BuildTimeoutError'];
+      };
+    };
   };
   parameters: {
     /**
-     * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
+     * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+     *     pen or preview URL).
      * @example 01a08738-73f0-7847-b6a8-5789d289c158
      */
-    PenId: components['schemas']['PenId'];
+    penId: string;
     /**
-     * @description The Pen's cpid or hashid.
-     * @example 01a08738-73f0-7847-b6a8-5789d289c158
-     */
-    CollectionPenId: components['schemas']['PenId'];
-    /**
-     * @description The version's cpid.
+     * @description The version's id.
      * @example 01a08738-73f0-7848-b8bf-e8e7e91b1ae2
      */
-    VersionId: components['schemas']['VersionId'];
+    versionId: string;
     /**
-     * @description The cpid of the version to copy to the head.
-     * @example 01a08738-73f0-7848-b8bf-e8e7e91b1ae2
-     */
-    RestoreVersionId: components['schemas']['VersionId'];
-    /**
-     * @description The ID of the version the build belongs to; a version and its build share one ID.
-     * @example 01a08853-f1ab-7967-812e-eda134bd9e61
-     */
-    BuildId: components['schemas']['VersionId'];
-    /**
-     * @description The Collection's hashid, the ID in `codepen.io/collection/<id>`.
+     * @description The Collection's hashid, the id in its URL.
      * @example QbaoZL
      */
-    CollectionId: components['schemas']['HashId'];
+    collectionId: string;
     /**
      * @description The Asset's hashid.
      * @example k7Ym0R
      */
-    AssetId: components['schemas']['HashId'];
+    assetId: string;
     /**
-     * @description The collaborator's CodePen username.
-     * @example teammate
-     */
-    Username: string;
-    /**
-     * @description The file's full path inside the Pen without its leading `/`, slashes included and
-     *     unencoded: `/pens/{id}/files/src/app.js` addresses `/src/app.js`. On a delete, a directory
-     *     path addresses every file under it.
+     * @description The file's full path in the Pen, without the leading `/`. Its
+     *     slashes may be sent as they are (`src/app.js`) or encoded
+     *     (`src%2Fapp.js`, as OpenAPI clients encode a path parameter).
      * @example src/app.js
      */
-    FilePath: string;
+    filePath: string;
+    /** @description The page, from 1. */
+    page: number;
+    /** @description Items per page. A value over 100 is reduced to 100, not refused. */
+    per_page: number;
+    /** @description The order: by creation or update time. */
+    sort: 'created' | 'updated';
+    /** @description The order: by creation or update time, or by popularity. */
+    sortPopularity: 'created' | 'updated' | 'popularity';
+    /** @description The order: by creation or update time, by popularity, or by title. */
+    sortPens: 'created' | 'updated' | 'popularity' | 'title';
+    /** @description `desc`, the default, lists newest first. */
+    direction: 'asc' | 'desc';
     /**
-     * @description The `saved_version.id` the change was based on. If the Pen's head has moved since, the write
-     *     is refused with 409 CONFLICT.
+     * @description Seconds to wait for the build (default 45, at most 75; `0` answers as
+     *     soon as the files are saved). A `wait` in the JSON body takes
+     *     precedence.
      */
-    ExpectedVersionId: components['schemas']['VersionId'];
+    wait: number;
     /**
-     * @description Seconds to wait for the write's build before answering: 0 answers as soon as the files are
-     *     saved. The build carries on either way. May also be sent as `wait` in a JSON body; on a
-     *     multipart request, use this query parameter.
+     * @description Build the proposed files without saving them: the head does not move
+     *     and the answer's `version` has `saved: false`. A `dry_run` in the JSON
+     *     body takes precedence.
      */
-    Wait: components['schemas']['Wait'];
-    /** @description The page to return, starting at 1. Prefer following the `Link` header to building page URLs. */
-    Page: number;
-    /** @description Items per page. */
-    PerPage: number;
-    /** @description The field to sort by. */
-    Sort: 'created' | 'updated';
-    /** @description The field to sort by. */
-    SortWithPopularity: 'created' | 'updated' | 'popularity';
-    /** @description Sort direction. The default puts the newest first. */
-    Direction: 'asc' | 'desc';
+    dry_run: boolean;
     /**
-     * @description Only Pens with one of these privacy settings. Comma-separated.
-     * @example [
-     *       "Public",
-     *       "Private"
-     *     ]
+     * @description The `saved_version.id` the change was built on. The write is refused
+     *     with `409` if the Pen's head has moved since.
      */
-    AccessFilter: components['schemas']['PenAccess'][];
-    /**
-     * @description Only Collections with one of these privacy settings. Comma-separated.
-     * @example [
-     *       "Public"
-     *     ]
-     */
-    CollectionAccessFilter: components['schemas']['CollectionAccess'][];
-    /** @description Only deployed (`true`) or undeployed (`false`) Pens. */
-    DeployedFilter: boolean;
-    /** @description Only templates (`true`) or non-templates (`false`). */
-    TemplateFilter: boolean;
-    /** @description Whether to include forks, only forks, or no forks. */
-    ForksFilter: 'All' | 'Forked' | 'NotForked';
-    /** @description Only Pens made in this editor. */
-    EditorFilter: components['schemas']['Editor'];
-    /**
-     * @description Pens tagged with any of these, comma-separated. Tags match the way they are saved:
-     *     lowercased, spaces as dashes, punctuation dropped (`Two Words!` is `two-words`).
-     * @example [
-     *       "gsap",
-     *       "svg"
-     *     ]
-     */
-    TagsFilter: string[];
-    /**
-     * @description Matches the title or description, in the site's search syntax: every word has to appear,
-     *     `"quoted words"` stay together, and `-word` excludes one.
-     * @example cards
-     */
-    SearchTermFilter: string;
+    expected_version_id: string;
   };
-  requestBodies: {
-    /**
-     * @description JSON, or a multipart form when uploading binary files. In the form, `pen` carries the JSON
-     *     body and every other part is one file, named by its path.
-     */
-    PenCreate: {
-      content: {
-        'application/json': components['schemas']['PenCreate'];
-        'multipart/form-data': components['schemas']['PenCreateMultipart'];
-      };
-    };
-    PenUpdate: {
-      content: {
-        'application/json': components['schemas']['PenUpdate'];
-      };
-    };
-    PenFork: {
-      content: {
-        'application/json': components['schemas']['PenFork'];
-      };
-    };
-    PenSettingsUpdate: {
-      content: {
-        'application/json': components['schemas']['PenSettingsUpdate'];
-      };
-    };
-    /**
-     * @description JSON, or a multipart form when uploading binary files. In the form, `changes` carries the
-     *     JSON body; every other part is one file, named by its path, and is one more change applied
-     *     after those in `changes`.
-     */
-    FilesWrite: {
-      content: {
-        'application/json': components['schemas']['FilesWrite'];
-        'multipart/form-data': components['schemas']['FilesWriteMultipart'];
-      };
-    };
-    /** @description JSON `content` for text, or a multipart part named `file` for any file. */
-    FileWrite: {
-      content: {
-        'application/json': components['schemas']['FileWrite'];
-        'multipart/form-data': components['schemas']['FileWriteMultipart'];
-      };
-    };
-    Deploy: {
-      content: {
-        'application/json': components['schemas']['Deploy'];
-      };
-    };
-    CollaboratorInvite: {
-      content: {
-        'application/json': components['schemas']['CollaboratorInvite'];
-      };
-    };
-    CollaboratorUpdate: {
-      content: {
-        'application/json': components['schemas']['CollaboratorUpdate'];
-      };
-    };
-    CollectionCreate: {
-      content: {
-        'application/json': components['schemas']['CollectionCreate'];
-      };
-    };
-    CollectionUpdate: {
-      content: {
-        'application/json': components['schemas']['CollectionUpdate'];
-      };
-    };
-    /** @description A multipart part named `file`, or for text, JSON `filename` and `content`. */
-    AssetCreate: {
-      content: {
-        'multipart/form-data': components['schemas']['AssetCreateMultipart'];
-        'application/json': components['schemas']['AssetCreate'];
-      };
-    };
-    /** @description A new `filename`, new content, or both. Content goes as JSON `content` or a multipart part named `file`. */
-    AssetUpdate: {
-      content: {
-        'application/json': components['schemas']['AssetUpdate'];
-        'multipart/form-data': components['schemas']['AssetUpdateMultipart'];
-      };
-    };
-  };
+  requestBodies: never;
   headers: {
     /**
-     * @description Links to the other pages, like GitHub's REST API. `rel="first"` and `rel="last"` are always
-     *     present (`last` counts under the request's own filters); `rel="prev"` is absent on the first
-     *     page and `rel="next"` on the last. Follow these URLs rather than building your own; they keep
-     *     the request's other query parameters.
-     * @example <https://api.codepen.io/v2/pens?page=1&per_page=30>; rel="prev", <https://api.codepen.io/v2/pens?page=3&per_page=30>; rel="next", <https://api.codepen.io/v2/pens?page=1&per_page=30>; rel="first", <https://api.codepen.io/v2/pens?page=21&per_page=30>; rel="last"
+     * @description The other pages, as `<url>; rel="prev"`, `"next"`, `"first"` and
+     *     `"last"`. `prev` is absent on the first page and `next` on the last.
+     *     Follow these URLs rather than building your own; they keep the
+     *     request's other query parameters.
+     * @example <https://api.codepen.io/v2/pens?page=3&per_page=30>; rel="next", <https://api.codepen.io/v2/pens?page=1&per_page=30>; rel="first", <https://api.codepen.io/v2/pens?page=21&per_page=30>; rel="last"
      */
     Link: string;
+    /** @description Sent with the `block` filter only. `true` when the scan stopped before finding a full page. */
+    'X-CodePen-Partial': boolean;
   };
   pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-  listPens: {
+  pens: {
     parameters: {
       query?: {
-        /** @description The page to return, starting at 1. Prefer following the `Link` header to building page URLs. */
-        page?: components['parameters']['Page'];
-        /** @description Items per page. */
-        per_page?: components['parameters']['PerPage'];
-        /** @description The field to sort by. */
-        sort?: components['parameters']['SortWithPopularity'];
-        /** @description Sort direction. The default puts the newest first. */
-        direction?: components['parameters']['Direction'];
+        /** @description The page, from 1. */
+        page?: components['parameters']['page'];
+        /** @description Items per page. A value over 100 is reduced to 100, not refused. */
+        per_page?: components['parameters']['per_page'];
+        /** @description The order: by creation or update time, by popularity, or by title. */
+        sort?: components['parameters']['sortPens'];
+        /** @description `desc`, the default, lists newest first. */
+        direction?: components['parameters']['direction'];
+        /** @description Comma list of `Public`, `Private`, `Protected` and `Collaborators`. */
+        access?: string;
+        /** @description `true` for Pens with a live deployment, `false` for Pens without one. */
+        deployed?: boolean;
+        /** @description `true` for Pens marked as templates, `false` for the rest. */
+        template?: boolean;
+        /** @description `Forked` for forks only, `NotForked` for Pens that are not forks. */
+        forks?: 'All' | 'Forked' | 'NotForked';
+        /** @description `V2`, or `Classic` for Pens made in the classic editor. */
+        editor?: 'V2' | 'Classic';
         /**
-         * @description Only Pens with one of these privacy settings. Comma-separated.
-         * @example [
-         *       "Public",
-         *       "Private"
-         *     ]
+         * @description Comma list of up to three tags; a Pen tagged with any of them
+         *     matches. Tags are matched the way they are saved: lowercased,
+         *     spaces as dashes, punctuation dropped.
          */
-        access?: components['parameters']['AccessFilter'];
-        /** @description Only deployed (`true`) or undeployed (`false`) Pens. */
-        deployed?: components['parameters']['DeployedFilter'];
-        /** @description Only templates (`true`) or non-templates (`false`). */
-        template?: components['parameters']['TemplateFilter'];
-        /** @description Whether to include forks, only forks, or no forks. */
-        forks?: components['parameters']['ForksFilter'];
-        /** @description Only Pens made in this editor. */
-        editor?: components['parameters']['EditorFilter'];
+        tags?: string;
         /**
-         * @description Pens tagged with any of these, comma-separated. Tags match the way they are saved:
-         *     lowercased, spaces as dashes, punctuation dropped (`Two Words!` is `two-words`).
-         * @example [
-         *       "gsap",
-         *       "svg"
-         *     ]
+         * @description Matches the title or description, up to 200 characters. Every word
+         *     has to appear, `"quoted words"` stay together and `-word` excludes
+         *     one.
          */
-        tags?: components['parameters']['TagsFilter'];
+        search_term?: string;
+        /** @description Pens created since this time (RFC 3339). */
+        created_since?: string;
+        /** @description Pens created until this time (RFC 3339). */
+        created_until?: string;
+        /** @description Pens updated since this time (RFC 3339). */
+        updated_since?: string;
+        /** @description Pens updated until this time (RFC 3339). */
+        updated_until?: string;
+        /** @description `true` for Pens with no title. */
+        untitled?: boolean;
         /**
-         * @description Matches the title or description, in the site's search syntax: every word has to appear,
-         *     `"quoted words"` stay together, and `-word` excludes one.
-         * @example cards
+         * @description Pens whose saved head uses this Block, such as `sass-1`. A capped
+         *     scan; see the operation description.
          */
-        search_term?: components['parameters']['SearchTermFilter'];
+        block?: string;
+        /**
+         * @description With `block` only: the cursor from the `next` link. Not combined
+         *     with `page`.
+         */
+        cursor?: string;
       };
       header?: never;
       path?: never;
@@ -1546,39 +1799,50 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description One page of Pens. */
+      /** @description A page of Pens. */
       200: {
         headers: {
           Link: components['headers']['Link'];
+          'X-CodePen-Partial': components['headers']['X-CodePen-Partial'];
           [name: string]: unknown;
         };
         content: {
           'application/json': components['schemas']['Pen'][];
         };
       };
-      400: components['responses']['BadUserInput'];
-      401: components['responses']['Unauthenticated'];
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
     };
   };
-  createPen: {
+  penCreate: {
     parameters: {
       query?: {
         /**
-         * @description Seconds to wait for the write's build before answering: 0 answers as soon as the files are
-         *     saved. The build carries on either way. May also be sent as `wait` in a JSON body; on a
-         *     multipart request, use this query parameter.
+         * @description Seconds to wait for the build (default 45, at most 75; `0` answers as
+         *     soon as the files are saved). A `wait` in the JSON body takes
+         *     precedence.
          */
-        wait?: components['parameters']['Wait'];
+        wait?: components['parameters']['wait'];
       };
       header?: never;
       path?: never;
       cookie?: never;
     };
-    requestBody?: components['requestBodies']['PenCreate'];
+    /** @description The Pen's metadata and files as JSON, or a multipart form whose `pen` part is that JSON and whose other parts are files. Optional; an empty body makes an Untitled Pen with starter files. */
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['PenCreateRequest'];
+        'multipart/form-data': {
+          pen?: components['schemas']['PenCreateRequest'];
+        } & {
+          [key: string]: components['schemas']['Upload'];
+        };
+      };
+    };
     responses: {
-      /** @description The new Pen, with the build of its newest version. */
+      /** @description The new Pen, with `build`. */
       201: {
         headers: {
           [name: string]: unknown;
@@ -1587,29 +1851,30 @@ export interface operations {
           'application/json': components['schemas']['PenWithBuild'];
         };
       };
-      400: components['responses']['BadUserInput'];
-      401: components['responses']['Unauthenticated'];
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
     };
   };
-  getPen: {
+  pen: {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
          * @example 01a08738-73f0-7847-b6a8-5789d289c158
          */
-        id: components['parameters']['PenId'];
+        id: components['parameters']['penId'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description The Pen. `saved_version` carries no files; read them from `GET /pens/{id}/files`. */
+      /** @description The Pen. */
       200: {
         headers: {
           [name: string]: unknown;
@@ -1618,51 +1883,64 @@ export interface operations {
           'application/json': components['schemas']['Pen'];
         };
       };
-      401: components['responses']['Unauthenticated'];
+      401: components['responses']['Unauthorized'];
       404: components['responses']['NotFound'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
     };
   };
-  deletePen: {
+  penDelete: {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
          * @example 01a08738-73f0-7847-b6a8-5789d289c158
          */
-        id: components['parameters']['PenId'];
+        id: components['parameters']['penId'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      204: components['responses']['NoContent'];
-      401: components['responses']['Unauthenticated'];
+      /** @description Moved to the trash. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
     };
   };
-  updatePen: {
+  penUpdate: {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
          * @example 01a08738-73f0-7847-b6a8-5789d289c158
          */
-        id: components['parameters']['PenId'];
+        id: components['parameters']['penId'];
       };
       cookie?: never;
     };
-    requestBody: components['requestBodies']['PenUpdate'];
+    /** @description The keys to change. */
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['PenUpdateRequest'];
+      };
+    };
     responses: {
-      /** @description The updated Pen. */
+      /** @description The Pen. */
       200: {
         headers: {
           [name: string]: unknown;
@@ -1671,37 +1949,43 @@ export interface operations {
           'application/json': components['schemas']['Pen'];
         };
       };
-      400: components['responses']['BadUserInput'];
-      401: components['responses']['Unauthenticated'];
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
     };
   };
-  forkPen: {
+  penFork: {
     parameters: {
       query?: {
         /**
-         * @description Seconds to wait for the write's build before answering: 0 answers as soon as the files are
-         *     saved. The build carries on either way. May also be sent as `wait` in a JSON body; on a
-         *     multipart request, use this query parameter.
+         * @description Seconds to wait for the build (default 45, at most 75; `0` answers as
+         *     soon as the files are saved). A `wait` in the JSON body takes
+         *     precedence.
          */
-        wait?: components['parameters']['Wait'];
+        wait?: components['parameters']['wait'];
       };
       header?: never;
       path: {
         /**
-         * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
          * @example 01a08738-73f0-7847-b6a8-5789d289c158
          */
-        id: components['parameters']['PenId'];
+        id: components['parameters']['penId'];
       };
       cookie?: never;
     };
-    requestBody?: components['requestBodies']['PenFork'];
+    /** @description What to change on the copy. Optional. */
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['PenForkRequest'];
+      };
+    };
     responses: {
-      /** @description The new Pen, with the build of its newest version. */
+      /** @description The new Pen, with `build`. */
       201: {
         headers: {
           [name: string]: unknown;
@@ -1710,56 +1994,25 @@ export interface operations {
           'application/json': components['schemas']['PenWithBuild'];
         };
       };
-      400: components['responses']['BadUserInput'];
-      401: components['responses']['Unauthenticated'];
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
     };
   };
-  updatePenSettings: {
+  penFiles: {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
          * @example 01a08738-73f0-7847-b6a8-5789d289c158
          */
-        id: components['parameters']['PenId'];
-      };
-      cookie?: never;
-    };
-    requestBody: components['requestBodies']['PenSettingsUpdate'];
-    responses: {
-      /** @description The Pen's settings after the change. */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['PenSettings'];
-        };
-      };
-      400: components['responses']['BadUserInput'];
-      401: components['responses']['Unauthenticated'];
-      403: components['responses']['Forbidden'];
-      404: components['responses']['NotFound'];
-      429: components['responses']['RateLimited'];
-      500: components['responses']['Internal'];
-    };
-  };
-  listPenFiles: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /**
-         * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
-         * @example 01a08738-73f0-7847-b6a8-5789d289c158
-         */
-        id: components['parameters']['PenId'];
+        id: components['parameters']['penId'];
       };
       cookie?: never;
     };
@@ -1774,61 +2027,126 @@ export interface operations {
           'application/json': components['schemas']['File'][];
         };
       };
-      401: components['responses']['Unauthenticated'];
+      401: components['responses']['Unauthorized'];
       404: components['responses']['NotFound'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
     };
   };
-  writePenFiles: {
+  penFilesWrite: {
     parameters: {
       query?: {
         /**
-         * @description Seconds to wait for the write's build before answering: 0 answers as soon as the files are
-         *     saved. The build carries on either way. May also be sent as `wait` in a JSON body; on a
-         *     multipart request, use this query parameter.
+         * @description Seconds to wait for the build (default 45, at most 75; `0` answers as
+         *     soon as the files are saved). A `wait` in the JSON body takes
+         *     precedence.
          */
-        wait?: components['parameters']['Wait'];
+        wait?: components['parameters']['wait'];
+        /**
+         * @description Build the proposed files without saving them: the head does not move
+         *     and the answer's `version` has `saved: false`. A `dry_run` in the JSON
+         *     body takes precedence.
+         */
+        dry_run?: components['parameters']['dry_run'];
       };
       header?: never;
       path: {
         /**
-         * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
          * @example 01a08738-73f0-7847-b6a8-5789d289c158
          */
-        id: components['parameters']['PenId'];
+        id: components['parameters']['penId'];
       };
       cookie?: never;
     };
-    requestBody: components['requestBodies']['FilesWrite'];
+    /** @description The changes as JSON, or a multipart form whose `changes` part is that JSON and whose other parts are files. */
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['FilesWriteJsonRequest'];
+        'multipart/form-data': {
+          changes?: components['schemas']['FilesWriteRequest'];
+          expected_version_id?: string;
+        } & {
+          [key: string]: components['schemas']['Upload'];
+        };
+      };
+    };
     responses: {
-      200: components['responses']['WriteResult'];
-      400: components['responses']['BadUserInput'];
-      401: components['responses']['Unauthenticated'];
+      200: components['responses']['FilesWrite'];
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
       409: components['responses']['Conflict'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
+      504: components['responses']['BuildTimeout'];
     };
   };
-  getPenFile: {
+  penFilesEdit: {
+    parameters: {
+      query?: {
+        /**
+         * @description Seconds to wait for the build (default 45, at most 75; `0` answers as
+         *     soon as the files are saved). A `wait` in the JSON body takes
+         *     precedence.
+         */
+        wait?: components['parameters']['wait'];
+        /**
+         * @description Build the proposed files without saving them: the head does not move
+         *     and the answer's `version` has `saved: false`. A `dry_run` in the JSON
+         *     body takes precedence.
+         */
+        dry_run?: components['parameters']['dry_run'];
+      };
+      header?: never;
+      path: {
+        /**
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
+         * @example 01a08738-73f0-7847-b6a8-5789d289c158
+         */
+        id: components['parameters']['penId'];
+      };
+      cookie?: never;
+    };
+    /** @description The hunks to apply. */
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['FilesEditRequest'];
+      };
+    };
+    responses: {
+      200: components['responses']['FilesWrite'];
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      429: components['responses']['RateLimited'];
+      500: components['responses']['Internal'];
+      504: components['responses']['BuildTimeout'];
+    };
+  };
+  penFile: {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
          * @example 01a08738-73f0-7847-b6a8-5789d289c158
          */
-        id: components['parameters']['PenId'];
+        id: components['parameters']['penId'];
         /**
-         * @description The file's full path inside the Pen without its leading `/`, slashes included and
-         *     unencoded: `/pens/{id}/files/src/app.js` addresses `/src/app.js`. On a delete, a directory
-         *     path addresses every file under it.
+         * @description The file's full path in the Pen, without the leading `/`. Its
+         *     slashes may be sent as they are (`src/app.js`) or encoded
+         *     (`src%2Fapp.js`, as OpenAPI clients encode a path parameter).
          * @example src/app.js
          */
-        path: components['parameters']['FilePath'];
+        path: components['parameters']['filePath'];
       };
       cookie?: never;
     };
@@ -1843,120 +2161,146 @@ export interface operations {
           'application/json': components['schemas']['File'];
         };
       };
-      401: components['responses']['Unauthenticated'];
+      401: components['responses']['Unauthorized'];
       404: components['responses']['NotFound'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
     };
   };
-  writePenFile: {
+  penFileWrite: {
     parameters: {
       query?: {
         /**
-         * @description Seconds to wait for the write's build before answering: 0 answers as soon as the files are
-         *     saved. The build carries on either way. May also be sent as `wait` in a JSON body; on a
-         *     multipart request, use this query parameter.
+         * @description Seconds to wait for the build (default 45, at most 75; `0` answers as
+         *     soon as the files are saved). A `wait` in the JSON body takes
+         *     precedence.
          */
-        wait?: components['parameters']['Wait'];
+        wait?: components['parameters']['wait'];
+        /**
+         * @description Build the proposed files without saving them: the head does not move
+         *     and the answer's `version` has `saved: false`. A `dry_run` in the JSON
+         *     body takes precedence.
+         */
+        dry_run?: components['parameters']['dry_run'];
       };
       header?: never;
       path: {
         /**
-         * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
          * @example 01a08738-73f0-7847-b6a8-5789d289c158
          */
-        id: components['parameters']['PenId'];
+        id: components['parameters']['penId'];
         /**
-         * @description The file's full path inside the Pen without its leading `/`, slashes included and
-         *     unencoded: `/pens/{id}/files/src/app.js` addresses `/src/app.js`. On a delete, a directory
-         *     path addresses every file under it.
+         * @description The file's full path in the Pen, without the leading `/`. Its
+         *     slashes may be sent as they are (`src/app.js`) or encoded
+         *     (`src%2Fapp.js`, as OpenAPI clients encode a path parameter).
          * @example src/app.js
          */
-        path: components['parameters']['FilePath'];
+        path: components['parameters']['filePath'];
       };
       cookie?: never;
     };
-    requestBody: components['requestBodies']['FileWrite'];
+    /** @description Text `content` as JSON, or a multipart `file` part. */
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['FileWriteRequest'];
+        'multipart/form-data': {
+          file: components['schemas']['Upload'];
+          expected_version_id?: string;
+        };
+      };
+    };
     responses: {
-      200: components['responses']['WriteResult'];
-      400: components['responses']['BadUserInput'];
-      401: components['responses']['Unauthenticated'];
+      200: components['responses']['FilesWrite'];
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
       409: components['responses']['Conflict'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
+      504: components['responses']['BuildTimeout'];
     };
   };
-  deletePenFile: {
+  penFileDelete: {
     parameters: {
       query?: {
         /**
-         * @description The `saved_version.id` the change was based on. If the Pen's head has moved since, the write
-         *     is refused with 409 CONFLICT.
+         * @description Seconds to wait for the build (default 45, at most 75; `0` answers as
+         *     soon as the files are saved). A `wait` in the JSON body takes
+         *     precedence.
          */
-        expected_version_id?: components['parameters']['ExpectedVersionId'];
+        wait?: components['parameters']['wait'];
         /**
-         * @description Seconds to wait for the write's build before answering: 0 answers as soon as the files are
-         *     saved. The build carries on either way. May also be sent as `wait` in a JSON body; on a
-         *     multipart request, use this query parameter.
+         * @description Build the proposed files without saving them: the head does not move
+         *     and the answer's `version` has `saved: false`. A `dry_run` in the JSON
+         *     body takes precedence.
          */
-        wait?: components['parameters']['Wait'];
+        dry_run?: components['parameters']['dry_run'];
+        /**
+         * @description The `saved_version.id` the change was built on. The write is refused
+         *     with `409` if the Pen's head has moved since.
+         */
+        expected_version_id?: components['parameters']['expected_version_id'];
       };
       header?: never;
       path: {
         /**
-         * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
          * @example 01a08738-73f0-7847-b6a8-5789d289c158
          */
-        id: components['parameters']['PenId'];
+        id: components['parameters']['penId'];
         /**
-         * @description The file's full path inside the Pen without its leading `/`, slashes included and
-         *     unencoded: `/pens/{id}/files/src/app.js` addresses `/src/app.js`. On a delete, a directory
-         *     path addresses every file under it.
+         * @description The file's full path in the Pen, without the leading `/`. Its
+         *     slashes may be sent as they are (`src/app.js`) or encoded
+         *     (`src%2Fapp.js`, as OpenAPI clients encode a path parameter).
          * @example src/app.js
          */
-        path: components['parameters']['FilePath'];
+        path: components['parameters']['filePath'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      200: components['responses']['WriteResult'];
-      400: components['responses']['BadUserInput'];
-      401: components['responses']['Unauthenticated'];
+      200: components['responses']['FilesWrite'];
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
       409: components['responses']['Conflict'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
+      504: components['responses']['BuildTimeout'];
     };
   };
-  listPenVersions: {
+  penVersions: {
     parameters: {
       query?: {
-        /** @description The page to return, starting at 1. Prefer following the `Link` header to building page URLs. */
-        page?: components['parameters']['Page'];
-        /** @description Items per page. */
-        per_page?: components['parameters']['PerPage'];
-        /** @description The field to sort by. */
-        sort?: components['parameters']['Sort'];
-        /** @description Sort direction. The default puts the newest first. */
-        direction?: components['parameters']['Direction'];
+        /** @description The page, from 1. */
+        page?: components['parameters']['page'];
+        /** @description Items per page. A value over 100 is reduced to 100, not refused. */
+        per_page?: components['parameters']['per_page'];
+        /** @description The order: by creation or update time. */
+        sort?: components['parameters']['sort'];
+        /** @description `desc`, the default, lists newest first. */
+        direction?: components['parameters']['direction'];
       };
       header?: never;
       path: {
         /**
-         * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
          * @example 01a08738-73f0-7847-b6a8-5789d289c158
          */
-        id: components['parameters']['PenId'];
+        id: components['parameters']['penId'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description One page of versions. */
+      /** @description A page of versions. */
       200: {
         headers: {
           Link: components['headers']['Link'];
@@ -1966,28 +2310,29 @@ export interface operations {
           'application/json': components['schemas']['Version'][];
         };
       };
-      400: components['responses']['BadUserInput'];
-      401: components['responses']['Unauthenticated'];
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
       404: components['responses']['NotFound'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
     };
   };
-  restorePenVersion: {
+  penVersionRestore: {
     parameters: {
-      query?: never;
+      query?: {
+        /** @description Names the new saved version (at most 80 characters). */
+        label?: string;
+      };
       header?: never;
       path: {
         /**
-         * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
          * @example 01a08738-73f0-7847-b6a8-5789d289c158
          */
-        id: components['parameters']['PenId'];
-        /**
-         * @description The cpid of the version to copy to the head.
-         * @example 01a08738-73f0-7848-b8bf-e8e7e91b1ae2
-         */
-        version_id: components['parameters']['RestoreVersionId'];
+        id: components['parameters']['penId'];
+        /** @description The id of the version to copy to the head. */
+        version_id: string;
       };
       cookie?: never;
     };
@@ -2002,23 +2347,24 @@ export interface operations {
           'application/json': components['schemas']['Pen'];
         };
       };
-      401: components['responses']['Unauthenticated'];
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
     };
   };
-  getVersion: {
+  penVersion: {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The version's cpid.
+         * @description The version's id.
          * @example 01a08738-73f0-7848-b8bf-e8e7e91b1ae2
          */
-        id: components['parameters']['VersionId'];
+        id: components['parameters']['versionId'];
       };
       cookie?: never;
     };
@@ -2033,56 +2379,66 @@ export interface operations {
           'application/json': components['schemas']['VersionDetail'];
         };
       };
-      401: components['responses']['Unauthenticated'];
+      401: components['responses']['Unauthorized'];
       404: components['responses']['NotFound'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
     };
   };
-  getBuild: {
+  build: {
     parameters: {
-      query?: never;
+      query?: {
+        /** @description Seconds to wait for the build to settle (at most 75). Without it the build is answered as it is. */
+        wait?: number;
+      };
       header?: never;
       path: {
         /**
-         * @description The ID of the version the build belongs to; a version and its build share one ID.
-         * @example 01a08853-f1ab-7967-812e-eda134bd9e61
+         * @description The version's id.
+         * @example 01a08738-73f0-7848-b8bf-e8e7e91b1ae2
          */
-        id: components['parameters']['BuildId'];
+        id: components['parameters']['versionId'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description The build. */
+      /** @description The build, with output `files` when it succeeded. */
       200: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['BuildDetail'];
+          'application/json': components['schemas']['Build'];
         };
       };
-      401: components['responses']['Unauthenticated'];
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
       404: components['responses']['NotFound'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
     };
   };
-  deployPen: {
+  penDeploy: {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
          * @example 01a08738-73f0-7847-b6a8-5789d289c158
          */
-        id: components['parameters']['PenId'];
+        id: components['parameters']['penId'];
       };
       cookie?: never;
     };
-    requestBody?: components['requestBodies']['Deploy'];
+    /** @description The version to deploy. Optional. */
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['DeployRequest'];
+      };
+    };
     responses: {
       /** @description The deployment. */
       200: {
@@ -2093,212 +2449,347 @@ export interface operations {
           'application/json': components['schemas']['Deployment'];
         };
       };
-      400: components['responses']['BadUserInput'];
-      401: components['responses']['Unauthenticated'];
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
     };
   };
-  undeployPen: {
+  penUndeploy: {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
          * @example 01a08738-73f0-7847-b6a8-5789d289c158
          */
-        id: components['parameters']['PenId'];
+        id: components['parameters']['penId'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      204: components['responses']['NoContent'];
-      401: components['responses']['Unauthenticated'];
+      /** @description Undeployed. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
     };
   };
-  listPenCollaborators: {
+  penDomains: {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
          * @example 01a08738-73f0-7847-b6a8-5789d289c158
          */
-        id: components['parameters']['PenId'];
+        id: components['parameters']['penId'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description The collaborators. */
+      200: components['responses']['Domains'];
+      401: components['responses']['Unauthorized'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['RateLimited'];
+      500: components['responses']['Internal'];
+    };
+  };
+  penDomainAdd: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /**
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
+         * @example 01a08738-73f0-7847-b6a8-5789d289c158
+         */
+        id: components['parameters']['penId'];
+      };
+      cookie?: never;
+    };
+    /** @description The domain to add. */
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DomainAddRequest'];
+      };
+    };
+    responses: {
+      201: components['responses']['Domains'];
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['RateLimited'];
+      500: components['responses']['Internal'];
+    };
+  };
+  penDomainRemove: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /**
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
+         * @example 01a08738-73f0-7847-b6a8-5789d289c158
+         */
+        id: components['parameters']['penId'];
+        /**
+         * @description The custom domain.
+         * @example www.example.com
+         */
+        host: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: components['responses']['Domains'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['RateLimited'];
+      500: components['responses']['Internal'];
+    };
+  };
+  penSettingsUpdate: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /**
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
+         * @example 01a08738-73f0-7847-b6a8-5789d289c158
+         */
+        id: components['parameters']['penId'];
+      };
+      cookie?: never;
+    };
+    /** @description The settings to change. */
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['SettingsUpdateRequest'];
+      };
+    };
+    responses: {
+      /** @description The settings. */
       200: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['CollaboratorList'];
+          'application/json': components['schemas']['Settings'];
         };
       };
-      401: components['responses']['Unauthenticated'];
-      404: components['responses']['NotFound'];
-      429: components['responses']['RateLimited'];
-      500: components['responses']['Internal'];
-    };
-  };
-  invitePenCollaborator: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /**
-         * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
-         * @example 01a08738-73f0-7847-b6a8-5789d289c158
-         */
-        id: components['parameters']['PenId'];
-      };
-      cookie?: never;
-    };
-    requestBody: components['requestBodies']['CollaboratorInvite'];
-    responses: {
-      /** @description The Pen's pending invites, including the new one. */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['InviteList'];
-        };
-      };
-      400: components['responses']['BadUserInput'];
-      401: components['responses']['Unauthenticated'];
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
     };
   };
-  removePenCollaborator: {
+  penCollaborators: {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
          * @example 01a08738-73f0-7847-b6a8-5789d289c158
          */
-        id: components['parameters']['PenId'];
-        /**
-         * @description The collaborator's CodePen username.
-         * @example teammate
-         */
-        username: components['parameters']['Username'];
+        id: components['parameters']['penId'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      204: components['responses']['NoContent'];
-      401: components['responses']['Unauthenticated'];
-      403: components['responses']['Forbidden'];
+      200: components['responses']['Collaborators'];
+      401: components['responses']['Unauthorized'];
       404: components['responses']['NotFound'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
     };
   };
-  updatePenCollaborator: {
+  collaboratorInvite: {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
          * @example 01a08738-73f0-7847-b6a8-5789d289c158
          */
-        id: components['parameters']['PenId'];
-        /**
-         * @description The collaborator's CodePen username.
-         * @example teammate
-         */
-        username: components['parameters']['Username'];
+        id: components['parameters']['penId'];
       };
       cookie?: never;
     };
-    requestBody: components['requestBodies']['CollaboratorUpdate'];
-    responses: {
-      /** @description The collaborators after the change. */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['CollaboratorList'];
-        };
+    /** @description Who to invite, and as what. */
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CollaboratorInviteRequest'];
       };
-      400: components['responses']['BadUserInput'];
-      401: components['responses']['Unauthenticated'];
+    };
+    responses: {
+      201: components['responses']['Invites'];
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
     };
   };
-  listPenInvites: {
+  collaboratorRemove: {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The Pen's cpid (2.0 Pens) or hashid (Classic Pens). Either works for any Pen.
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
          * @example 01a08738-73f0-7847-b6a8-5789d289c158
          */
-        id: components['parameters']['PenId'];
+        id: components['parameters']['penId'];
+        /** @description The collaborator's CodePen username. */
+        username: string;
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description The pending invites. */
-      200: {
+      /** @description Removed. */
+      204: {
         headers: {
           [name: string]: unknown;
         };
-        content: {
-          'application/json': components['schemas']['InviteList'];
-        };
+        content?: never;
       };
-      401: components['responses']['Unauthenticated'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
     };
   };
-  listCollections: {
+  collaboratorUpdateRole: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /**
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
+         * @example 01a08738-73f0-7847-b6a8-5789d289c158
+         */
+        id: components['parameters']['penId'];
+        /** @description The collaborator's CodePen username. */
+        username: string;
+      };
+      cookie?: never;
+    };
+    /** @description The new role. */
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RoleUpdateRequest'];
+      };
+    };
+    responses: {
+      200: components['responses']['Collaborators'];
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['RateLimited'];
+      500: components['responses']['Internal'];
+    };
+  };
+  penInvites: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /**
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
+         * @example 01a08738-73f0-7847-b6a8-5789d289c158
+         */
+        id: components['parameters']['penId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: components['responses']['Invites'];
+      401: components['responses']['Unauthorized'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['RateLimited'];
+      500: components['responses']['Internal'];
+    };
+  };
+  penRestore: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /**
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
+         * @example 01a08738-73f0-7847-b6a8-5789d289c158
+         */
+        id: components['parameters']['penId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The Pen. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Pen'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['RateLimited'];
+      500: components['responses']['Internal'];
+    };
+  };
+  trash: {
     parameters: {
       query?: {
-        /** @description The page to return, starting at 1. Prefer following the `Link` header to building page URLs. */
-        page?: components['parameters']['Page'];
-        /** @description Items per page. */
-        per_page?: components['parameters']['PerPage'];
-        /** @description The field to sort by. */
-        sort?: components['parameters']['SortWithPopularity'];
-        /** @description Sort direction. The default puts the newest first. */
-        direction?: components['parameters']['Direction'];
-        /**
-         * @description Only Collections with one of these privacy settings. Comma-separated.
-         * @example [
-         *       "Public"
-         *     ]
-         */
-        access?: components['parameters']['CollectionAccessFilter'];
+        /** @description The page, from 1. */
+        page?: components['parameters']['page'];
+        /** @description Items per page. A value over 100 is reduced to 100, not refused. */
+        per_page?: components['parameters']['per_page'];
+        /** @description The order: by creation or update time. */
+        sort?: components['parameters']['sort'];
+        /** @description `desc`, the default, lists newest first. */
+        direction?: components['parameters']['direction'];
       };
       header?: never;
       path?: never;
@@ -2306,7 +2797,76 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description One page of Collections. */
+      /** @description A page of trash items. */
+      200: {
+        headers: {
+          Link: components['headers']['Link'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TrashItem'][];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      429: components['responses']['RateLimited'];
+      500: components['responses']['Internal'];
+    };
+  };
+  penPurge: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /**
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
+         * @example 01a08738-73f0-7847-b6a8-5789d289c158
+         */
+        id: components['parameters']['penId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The trash item that was deleted. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TrashItem'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['RateLimited'];
+      500: components['responses']['Internal'];
+    };
+  };
+  collections: {
+    parameters: {
+      query?: {
+        /** @description The page, from 1. */
+        page?: components['parameters']['page'];
+        /** @description Items per page. A value over 100 is reduced to 100, not refused. */
+        per_page?: components['parameters']['per_page'];
+        /** @description The order: by creation or update time, or by popularity. */
+        sort?: components['parameters']['sortPopularity'];
+        /** @description `desc`, the default, lists newest first. */
+        direction?: components['parameters']['direction'];
+        /** @description Comma list of `Public` and `Private`. */
+        access?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description A page of Collections. */
       200: {
         headers: {
           Link: components['headers']['Link'];
@@ -2316,20 +2876,25 @@ export interface operations {
           'application/json': components['schemas']['Collection'][];
         };
       };
-      400: components['responses']['BadUserInput'];
-      401: components['responses']['Unauthenticated'];
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
     };
   };
-  createCollection: {
+  collectionCreate: {
     parameters: {
       query?: never;
       header?: never;
       path?: never;
       cookie?: never;
     };
-    requestBody: components['requestBodies']['CollectionCreate'];
+    /** @description The new Collection. `title` is required. */
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CollectionCreateRequest'];
+      };
+    };
     responses: {
       /** @description The new Collection. */
       201: {
@@ -2340,122 +2905,139 @@ export interface operations {
           'application/json': components['schemas']['Collection'];
         };
       };
-      400: components['responses']['BadUserInput'];
-      401: components['responses']['Unauthenticated'];
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
     };
   };
-  getCollection: {
+  collection: {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The Collection's hashid, the ID in `codepen.io/collection/<id>`.
+         * @description The Collection's hashid, the id in its URL.
          * @example QbaoZL
          */
-        id: components['parameters']['CollectionId'];
+        id: components['parameters']['collectionId'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description The Collection. */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['Collection'];
-        };
-      };
-      401: components['responses']['Unauthenticated'];
+      200: components['responses']['Collection'];
+      401: components['responses']['Unauthorized'];
       404: components['responses']['NotFound'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
     };
   };
-  deleteCollection: {
+  collectionDelete: {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The Collection's hashid, the ID in `codepen.io/collection/<id>`.
+         * @description The Collection's hashid, the id in its URL.
          * @example QbaoZL
          */
-        id: components['parameters']['CollectionId'];
+        id: components['parameters']['collectionId'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      204: components['responses']['NoContent'];
-      401: components['responses']['Unauthenticated'];
+      /** @description Moved to the trash. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['Unauthorized'];
       404: components['responses']['NotFound'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
     };
   };
-  updateCollection: {
+  collectionUpdate: {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The Collection's hashid, the ID in `codepen.io/collection/<id>`.
+         * @description The Collection's hashid, the id in its URL.
          * @example QbaoZL
          */
-        id: components['parameters']['CollectionId'];
+        id: components['parameters']['collectionId'];
       };
       cookie?: never;
     };
-    requestBody: components['requestBodies']['CollectionUpdate'];
-    responses: {
-      /** @description The updated Collection. */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['Collection'];
-        };
+    /** @description The keys to change. */
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['CollectionRequest'];
       };
-      400: components['responses']['BadUserInput'];
-      401: components['responses']['Unauthenticated'];
+    };
+    responses: {
+      200: components['responses']['Collection'];
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
     };
   };
-  listCollectionPens: {
+  collectionRestore: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /**
+         * @description The Collection's hashid, the id in its URL.
+         * @example QbaoZL
+         */
+        id: components['parameters']['collectionId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: components['responses']['Collection'];
+      401: components['responses']['Unauthorized'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['RateLimited'];
+      500: components['responses']['Internal'];
+    };
+  };
+  collectionPens: {
     parameters: {
       query?: {
-        /** @description The page to return, starting at 1. Prefer following the `Link` header to building page URLs. */
-        page?: components['parameters']['Page'];
-        /** @description Items per page. */
-        per_page?: components['parameters']['PerPage'];
-        /** @description The field to sort by. */
-        sort?: components['parameters']['Sort'];
-        /** @description Sort direction. The default puts the newest first. */
-        direction?: components['parameters']['Direction'];
+        /** @description The page, from 1. */
+        page?: components['parameters']['page'];
+        /** @description Items per page. A value over 100 is reduced to 100, not refused. */
+        per_page?: components['parameters']['per_page'];
+        /** @description The order: by creation or update time. */
+        sort?: components['parameters']['sort'];
+        /** @description `desc`, the default, lists newest first. */
+        direction?: components['parameters']['direction'];
       };
       header?: never;
       path: {
         /**
-         * @description The Collection's hashid, the ID in `codepen.io/collection/<id>`.
+         * @description The Collection's hashid, the id in its URL.
          * @example QbaoZL
          */
-        id: components['parameters']['CollectionId'];
+        id: components['parameters']['collectionId'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description One page of Pens. */
+      /** @description A page of Pens. */
       200: {
         headers: {
           Link: components['headers']['Link'];
@@ -2465,86 +3047,79 @@ export interface operations {
           'application/json': components['schemas']['Pen'][];
         };
       };
-      400: components['responses']['BadUserInput'];
-      401: components['responses']['Unauthenticated'];
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
       404: components['responses']['NotFound'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
     };
   };
-  addPenToCollection: {
+  collectionAddPen: {
     parameters: {
       query?: never;
       header?: never;
       path: {
         /**
-         * @description The Collection's hashid, the ID in `codepen.io/collection/<id>`.
+         * @description The Collection's hashid, the id in its URL.
          * @example QbaoZL
          */
-        id: components['parameters']['CollectionId'];
-        /**
-         * @description The Pen's cpid or hashid.
-         * @example 01a08738-73f0-7847-b6a8-5789d289c158
-         */
-        pen_id: components['parameters']['CollectionPenId'];
+        id: components['parameters']['collectionId'];
+        /** @description The Pen's id (cpid or hashid) or a CodePen URL that names it. */
+        pen_id: string;
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description The Collection. */
-      200: {
+      200: components['responses']['Collection'];
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['RateLimited'];
+      500: components['responses']['Internal'];
+    };
+  };
+  collectionRemovePen: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /**
+         * @description The Collection's hashid, the id in its URL.
+         * @example QbaoZL
+         */
+        id: components['parameters']['collectionId'];
+        /** @description The Pen's id (cpid or hashid) or a CodePen URL that names it. */
+        pen_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Removed. */
+      204: {
         headers: {
           [name: string]: unknown;
         };
-        content: {
-          'application/json': components['schemas']['Collection'];
-        };
+        content?: never;
       };
-      401: components['responses']['Unauthenticated'];
+      401: components['responses']['Unauthorized'];
       404: components['responses']['NotFound'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
     };
   };
-  removePenFromCollection: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /**
-         * @description The Collection's hashid, the ID in `codepen.io/collection/<id>`.
-         * @example QbaoZL
-         */
-        id: components['parameters']['CollectionId'];
-        /**
-         * @description The Pen's cpid or hashid.
-         * @example 01a08738-73f0-7847-b6a8-5789d289c158
-         */
-        pen_id: components['parameters']['CollectionPenId'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      204: components['responses']['NoContent'];
-      401: components['responses']['Unauthenticated'];
-      404: components['responses']['NotFound'];
-      429: components['responses']['RateLimited'];
-      500: components['responses']['Internal'];
-    };
-  };
-  listAssets: {
+  assets: {
     parameters: {
       query?: {
-        /** @description The page to return, starting at 1. Prefer following the `Link` header to building page URLs. */
-        page?: components['parameters']['Page'];
-        /** @description Items per page. */
-        per_page?: components['parameters']['PerPage'];
-        /** @description The field to sort by. */
-        sort?: components['parameters']['Sort'];
-        /** @description Sort direction. The default puts the newest first. */
-        direction?: components['parameters']['Direction'];
+        /** @description The page, from 1. */
+        page?: components['parameters']['page'];
+        /** @description Items per page. A value over 100 is reduced to 100, not refused. */
+        per_page?: components['parameters']['per_page'];
+        /** @description The order: by creation or update time. */
+        sort?: components['parameters']['sort'];
+        /** @description `desc`, the default, lists newest first. */
+        direction?: components['parameters']['direction'];
       };
       header?: never;
       path?: never;
@@ -2552,7 +3127,7 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description One page of Assets. */
+      /** @description A page of Assets, without `content`. */
       200: {
         headers: {
           Link: components['headers']['Link'];
@@ -2562,22 +3137,31 @@ export interface operations {
           'application/json': components['schemas']['Asset'][];
         };
       };
-      400: components['responses']['BadUserInput'];
-      401: components['responses']['Unauthenticated'];
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
     };
   };
-  createAsset: {
+  assetCreate: {
     parameters: {
       query?: never;
       header?: never;
       path?: never;
       cookie?: never;
     };
-    requestBody: components['requestBodies']['AssetCreate'];
+    /** @description A multipart `file` part, or JSON `filename` and text `content`. */
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AssetCreateRequest'];
+        'multipart/form-data': {
+          file: components['schemas']['Upload'];
+          filename?: components['schemas']['AssetFilename'];
+        };
+      };
+    };
     responses: {
-      /** @description The new Asset, without `content`. */
+      /** @description The new Asset. */
       201: {
         headers: {
           [name: string]: unknown;
@@ -2586,14 +3170,14 @@ export interface operations {
           'application/json': components['schemas']['Asset'];
         };
       };
-      400: components['responses']['BadUserInput'];
-      401: components['responses']['Unauthenticated'];
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
     };
   };
-  getAsset: {
+  asset: {
     parameters: {
       query?: never;
       header?: never;
@@ -2602,28 +3186,28 @@ export interface operations {
          * @description The Asset's hashid.
          * @example k7Ym0R
          */
-        id: components['parameters']['AssetId'];
+        id: components['parameters']['assetId'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description The Asset. */
+      /** @description The Asset with its `content`. */
       200: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['AssetDetail'];
+          'application/json': components['schemas']['AssetWithContent'];
         };
       };
-      401: components['responses']['Unauthenticated'];
+      401: components['responses']['Unauthorized'];
       404: components['responses']['NotFound'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
     };
   };
-  deleteAsset: {
+  assetDelete: {
     parameters: {
       query?: never;
       header?: never;
@@ -2632,20 +3216,26 @@ export interface operations {
          * @description The Asset's hashid.
          * @example k7Ym0R
          */
-        id: components['parameters']['AssetId'];
+        id: components['parameters']['assetId'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      204: components['responses']['NoContent'];
-      401: components['responses']['Unauthenticated'];
+      /** @description Deleted. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['Unauthorized'];
       404: components['responses']['NotFound'];
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
     };
   };
-  updateAsset: {
+  assetUpdate: {
     parameters: {
       query?: never;
       header?: never;
@@ -2654,13 +3244,22 @@ export interface operations {
          * @description The Asset's hashid.
          * @example k7Ym0R
          */
-        id: components['parameters']['AssetId'];
+        id: components['parameters']['assetId'];
       };
       cookie?: never;
     };
-    requestBody: components['requestBodies']['AssetUpdate'];
+    /** @description A new `filename`, new content, or both. */
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AssetRequest'];
+        'multipart/form-data': {
+          file?: components['schemas']['Upload'];
+          filename?: components['schemas']['AssetFilename'];
+        };
+      };
+    };
     responses: {
-      /** @description The updated Asset, without `content`. */
+      /** @description The Asset. */
       200: {
         headers: {
           [name: string]: unknown;
@@ -2669,8 +3268,8 @@ export interface operations {
           'application/json': components['schemas']['Asset'];
         };
       };
-      400: components['responses']['BadUserInput'];
-      401: components['responses']['Unauthenticated'];
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
       429: components['responses']['RateLimited'];
@@ -2678,6 +3277,3 @@ export interface operations {
     };
   };
 }
-type WithRequired<T, K extends keyof T> = T & {
-  [P in K]-?: T[P];
-};

@@ -1,40 +1,58 @@
 /**
- * Generates TypeScript types from the spec into generated/codepen-api-v2.ts, formatted with the
- * repo's Prettier settings. With --check, writes nothing and fails if the committed file is stale.
+ * Builds the spec from upstream/ and overlays/ into codepen-api-v2.yaml, and its TypeScript types into
+ * generated/codepen-api-v2.ts, both formatted with the repo's Prettier settings. With --check, writes
+ * nothing and fails if a committed file is stale.
  */
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import openapiTS, { astToString, COMMENT_HEADER } from 'openapi-typescript';
+import type { OpenAPI3 } from 'openapi-typescript';
 import { format, resolveConfig } from 'prettier';
+import { stringify } from 'yaml';
+import { buildFromFiles } from '../lib/merge.js';
 import { SPEC_URL } from '../lib/spec.js';
 
-export const GENERATED_URL = new URL('../generated/codepen-api-v2.ts', import.meta.url);
+const GENERATED_URL = new URL('../generated/codepen-api-v2.ts', import.meta.url);
+const SPEC_HEADER = `# Generated from upstream/ and overlays/ by scripts/generate.ts. Do not edit; see CONTRIBUTING.md.\n`;
 
-export async function render(): Promise<string> {
-  const source = COMMENT_HEADER + astToString(await openapiTS(SPEC_URL));
-  const filepath = fileURLToPath(GENERATED_URL);
+async function formatted(url: URL, source: string): Promise<string> {
+  const filepath = fileURLToPath(url);
   return format(source, { ...(await resolveConfig(filepath)), filepath });
 }
 
-function readCommitted(): string | undefined {
+const doc = buildFromFiles();
+const outputs: [URL, string][] = [
+  [
+    SPEC_URL,
+    await formatted(SPEC_URL, SPEC_HEADER + stringify(doc, { aliasDuplicateObjects: false })),
+  ],
+  [
+    GENERATED_URL,
+    await formatted(
+      GENERATED_URL,
+      COMMENT_HEADER + astToString(await openapiTS(doc as unknown as OpenAPI3)),
+    ),
+  ],
+];
+
+function readCommitted(url: URL): string | undefined {
   try {
-    return readFileSync(GENERATED_URL, 'utf8');
+    return readFileSync(url, 'utf8');
   } catch {
     return undefined;
   }
 }
 
-const output = await render();
-if (process.argv.includes('--check')) {
-  if (readCommitted() !== output) {
-    console.error(
-      'generated/codepen-api-v2.ts is out of date with the spec. Run: npm run generate',
-    );
-    process.exit(1);
+for (const [url, output] of outputs) {
+  const name = fileURLToPath(url).split('/specs/').at(-1);
+  if (!process.argv.includes('--check')) {
+    writeFileSync(url, output);
+    console.log(`Wrote ${name}`);
+  } else if (readCommitted(url) === output) {
+    console.log(`${name} is up to date.`);
+  } else {
+    console.error(`${name} is out of date. Run: npm run generate`);
+    process.exitCode = 1;
   }
-  console.log('generated/codepen-api-v2.ts matches the spec.');
-} else {
-  writeFileSync(GENERATED_URL, output);
-  console.log('Wrote generated/codepen-api-v2.ts');
 }

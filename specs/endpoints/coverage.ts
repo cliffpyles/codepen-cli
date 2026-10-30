@@ -8,6 +8,22 @@ import type { Operation } from '../lib/spec.js';
 /** Where the recording setup writes one JSON line per request the endpoint tests make. */
 export const CALLS_FILE = join(tmpdir(), 'codepen-api-v2-spec-endpoint-calls.jsonl');
 
+/**
+ * Operations the official spec has and the CLI's client does not call yet. Endpoint coverage fails
+ * if one of these starts being exercised, so the list stays exact; remove an entry when the client
+ * gains it.
+ */
+export const NOT_IN_CLIENT = [
+  'PATCH /v2/pens/{id}/files',
+  'GET /v2/pens/{id}/domains',
+  'POST /v2/pens/{id}/domains',
+  'DELETE /v2/pens/{id}/domains/{host}',
+  'POST /v2/pens/{id}/restore',
+  'GET /v2/trash',
+  'DELETE /v2/trash/pens/{id}',
+  'POST /v2/collections/{id}/restore',
+];
+
 export interface RecordedCall {
   method: string;
   url: string;
@@ -24,11 +40,11 @@ function templatePattern(op: Operation): RegExp {
 }
 
 /**
- * The operation a request is for, matched by method and by path template against the URL's path
- * after the API's `/v2` prefix. Undefined when no operation matches.
+ * The operation a request is for, matched by method and by path template against the URL's path.
+ * Undefined when no operation matches.
  */
 export function matchOperation(ops: Operation[], call: RecordedCall): Operation | undefined {
-  const path = new URL(call.url).pathname.replace(/^\/v2(?=\/)/, '');
+  const path = new URL(call.url).pathname;
   const method = call.method.toLowerCase();
   return ops.find((op) => op.method === method && templatePattern(op).test(path));
 }

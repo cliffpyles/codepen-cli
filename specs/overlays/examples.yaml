@@ -1,0 +1,1269 @@
+# Examples for the official spec, which has none for successful responses or requests. Checked against
+# both our schemas and upstream's by test/hybrid.test.ts.
+overlay: 1.0.0
+info:
+  title: Examples for the CodePen API description
+  version: 1.0.0
+actions:
+  - target: $.components
+    update:
+      examples:
+        PenSettings:
+          summary: Default editor settings
+          value:
+            auto_deploy: false
+            auto_run: true
+            auto_save: true
+            indent_with: spaces
+            tab_size: 2
+        FileText:
+          summary: A text source file
+          value:
+            id: 01a0884b-3177-71c3-a1c2-9452bfb9a3fb
+            path: /src/app.js
+            name: app.js
+            content_hash: 71c0d5be0c3f4a8e7b1d9e2f6a3c5b8d0e4f7a1b2c3d4e5f6a7b8c9d0e1f2a3b
+            is_binary: false
+            content: console.log("moved")
+            url: https://01a08738-73f0-7847-b6a8-5789d289c158.codepenusercontent.com/src/app.js
+            bytes: 20
+            content_type: text/javascript
+        FileBinary:
+          summary: A binary source file; its bytes are at url
+          value:
+            id: 01a08853-f1aa-7966-82f1-6d37d7140e34
+            path: /img/logo.png
+            name: logo.png
+            content_hash: 3c1b9a7e5d2f4c6b8a0e1d3f5b7c9a2e4d6f8b0c1a3e5d7f9b2c4a6e8d0f1b3c
+            is_binary: true
+            content: null
+            url: https://01a08738-73f0-7847-b6a8-5789d289c158.codepenusercontent.com/img/logo.png
+            bytes: 2048
+            content_type: image/png
+        FileList:
+          summary: The saved head's source files
+          value:
+            - id: 01a08738-73f1-7a10-9c42-1f2d3e4b5a60
+              path: /index.html
+              name: index.html
+              content_hash: 9f2e4b6d8a0c1e3f5b7d9a2c4e6f8b0d1a3c5e7f9b2d4a6c8e0f1b3d5a7c9e2f
+              is_binary: false
+              content: <script src="src/app.js"></script>
+              url: https://01a08738-73f0-7847-b6a8-5789d289c158.codepenusercontent.com/index.html
+              bytes: 34
+              content_type: text/html
+            - id: 01a0884b-3177-71c3-a1c2-9452bfb9a3fb
+              path: /src/app.js
+              name: app.js
+              content_hash: 71c0d5be0c3f4a8e7b1d9e2f6a3c5b8d0e4f7a1b2c3d4e5f6a7b8c9d0e1f2a3b
+              is_binary: false
+              content: console.log("moved")
+              url: https://01a08738-73f0-7847-b6a8-5789d289c158.codepenusercontent.com/src/app.js
+              bytes: 20
+              content_type: text/javascript
+        BuildSuccess:
+          summary: A successful build with its compiled output
+          value:
+            id: 01a08853-f1ab-7967-812e-eda134bd9e61
+            status: Success
+            started_at: 2026-09-09T22:25:02Z
+            ended_at: 2026-09-09T22:25:05Z
+            rounds: 1
+            diagnostics: []
+            errors: []
+            applied_patches: []
+            patches: []
+            files:
+              - id: 01a08853-f1ac-7a01-8b3d-2c4e6f8a0b1d
+                path: /index.html
+                name: index.html
+                content_hash: 9f2e4b6d8a0c1e3f5b7d9a2c4e6f8b0d1a3c5e7f9b2d4a6c8e0f1b3d5a7c9e2f
+                is_binary: false
+                content: <script src="src/app.js"></script>
+                url: https://pv-01a08853-f1ab-7967-812e-eda134bd9e61.codepen.dev/index.html
+                bytes: 34
+                content_type: text/html
+              - id: 01a08853-f1ac-7a02-9c4e-3d5f7a9b1c2e
+                path: /src/app.js
+                name: app.js
+                content_hash: 71c0d5be0c3f4a8e7b1d9e2f6a3c5b8d0e4f7a1b2c3d4e5f6a7b8c9d0e1f2a3b
+                is_binary: false
+                content: console.log("moved")
+                url: https://pv-01a08853-f1ab-7967-812e-eda134bd9e61.codepen.dev/src/app.js
+                bytes: 20
+                content_type: text/javascript
+            version_id: 01a08853-f1ab-7967-812e-eda134bd9e61
+            next_id: null
+            previous_id: null
+        VersionList:
+          summary: Saved versions, newest first, without files
+          value:
+            - id: 01a08853-f1ab-7967-812e-eda134bd9e61
+              pen_id: 01a08738-73f0-7847-b6a8-5789d289c158
+              hash: 5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e
+              created_at: 2026-09-09T22:25:02Z
+              deployed: false
+              build:
+                id: 01a08853-f1ab-7967-812e-eda134bd9e61
+                status: Success
+                started_at: 2026-09-09T22:25:02Z
+                ended_at: 2026-09-09T22:25:05Z
+                rounds: 1
+                diagnostics: []
+                errors: []
+                applied_patches: []
+                patches: []
+                version_id: 01a08853-f1ab-7967-812e-eda134bd9e61
+                next_id: null
+                previous_id: null
+              preview_url: https://pv-01a08853-f1ab-7967-812e-eda134bd9e61.codepen.dev/
+              saved: true
+              label: null
+            - id: 01a08738-73f0-7848-b8bf-e8e7e91b1ae2
+              pen_id: 01a08738-73f0-7847-b6a8-5789d289c158
+              hash: acb9e1d3f5a7c9b2d4e6f8a0c1e3b5d7f9a2c4e6b8d0f1a3c5e7b9d2f4a6c8e0
+              created_at: 2026-09-09T22:23:39Z
+              deployed: true
+              build:
+                id: 01a08738-73f0-7848-b8bf-e8e7e91b1ae2
+                status: Success
+                started_at: 2026-09-09T22:23:40Z
+                ended_at: 2026-09-09T22:23:43Z
+                rounds: 1
+                diagnostics: []
+                errors: []
+                applied_patches: []
+                patches: []
+                version_id: 01a08738-73f0-7848-b8bf-e8e7e91b1ae2
+                next_id: null
+                previous_id: null
+              preview_url: https://pv-01a08738-73f0-7848-b8bf-e8e7e91b1ae2.codepen.dev/
+              saved: true
+              label: null
+        VersionDetail:
+          summary: A version with its source files and its build's output
+          value:
+            id: 01a08853-f1ab-7967-812e-eda134bd9e61
+            pen_id: 01a08738-73f0-7847-b6a8-5789d289c158
+            hash: 5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e
+            created_at: 2026-09-09T22:25:02Z
+            deployed: false
+            build:
+              id: 01a08853-f1ab-7967-812e-eda134bd9e61
+              status: Success
+              started_at: 2026-09-09T22:25:02Z
+              ended_at: 2026-09-09T22:25:05Z
+              rounds: 1
+              diagnostics: []
+              errors: []
+              applied_patches: []
+              patches: []
+              files:
+                - id: 01a08853-f1ac-7a01-8b3d-2c4e6f8a0b1d
+                  path: /index.html
+                  name: index.html
+                  content_hash: 9f2e4b6d8a0c1e3f5b7d9a2c4e6f8b0d1a3c5e7f9b2d4a6c8e0f1b3d5a7c9e2f
+                  is_binary: false
+                  content: <script src="src/app.js"></script>
+                  url: https://pv-01a08853-f1ab-7967-812e-eda134bd9e61.codepen.dev/index.html
+                  bytes: 34
+                  content_type: text/html
+                - id: 01a08853-f1ac-7a02-9c4e-3d5f7a9b1c2e
+                  path: /src/app.js
+                  name: app.js
+                  content_hash: 71c0d5be0c3f4a8e7b1d9e2f6a3c5b8d0e4f7a1b2c3d4e5f6a7b8c9d0e1f2a3b
+                  is_binary: false
+                  content: console.log("moved")
+                  url: https://pv-01a08853-f1ab-7967-812e-eda134bd9e61.codepen.dev/src/app.js
+                  bytes: 20
+                  content_type: text/javascript
+              version_id: 01a08853-f1ab-7967-812e-eda134bd9e61
+              next_id: null
+              previous_id: null
+            preview_url: https://pv-01a08853-f1ab-7967-812e-eda134bd9e61.codepen.dev/
+            files:
+              - id: 01a08738-73f1-7a10-9c42-1f2d3e4b5a60
+                path: /index.html
+                name: index.html
+                content_hash: 9f2e4b6d8a0c1e3f5b7d9a2c4e6f8b0d1a3c5e7f9b2d4a6c8e0f1b3d5a7c9e2f
+                is_binary: false
+                content: <script src="src/app.js"></script>
+                url: https://01a08738-73f0-7847-b6a8-5789d289c158.codepenusercontent.com/index.html
+                bytes: 34
+                content_type: text/html
+              - id: 01a0884b-3177-71c3-a1c2-9452bfb9a3fb
+                path: /src/app.js
+                name: app.js
+                content_hash: 71c0d5be0c3f4a8e7b1d9e2f6a3c5b8d0e4f7a1b2c3d4e5f6a7b8c9d0e1f2a3b
+                is_binary: false
+                content: console.log("moved")
+                url: https://01a08738-73f0-7847-b6a8-5789d289c158.codepenusercontent.com/src/app.js
+                bytes: 20
+                content_type: text/javascript
+            saved: true
+            label: null
+        Deployment:
+          summary: The live deployment of an older version
+          value:
+            id: kRxnnr
+            version_id: 01a08738-73f0-7848-b8bf-e8e7e91b1ae2
+            url: https://cheerful-term-baboon.codepen.app/
+            custom_domains: []
+            created_at: 2026-09-09T22:23:40Z
+            updated_at: 2026-09-09T22:23:40Z
+        Pen:
+          summary: A 2.0 Pen with a deployment
+          value:
+            id: 01a08738-73f0-7847-b6a8-5789d289c158
+            title: Hello
+            description: Made with the API
+            tags:
+              - api
+              - demo
+            access: Private
+            password: null
+            template: false
+            popularity: 12
+            loves_count: 3
+            views_count: 41
+            editor: V2
+            created_at: 2026-09-09T22:23:39Z
+            updated_at: 2026-09-09T22:25:02Z
+            urls:
+              editor: https://codepen.io/editor/yourname/pen/01a08738-73f0-7847-b6a8-5789d289c158
+              preview: https://01a08738-73f0-7847-b6a8-5789d289c158.codepen.dev/
+            screenshot_urls:
+              small: https://01a08738-73f0-7847-b6a8-5789d289c158.codepen.dev/.codepen/screenshots/5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e/320.jpg
+              medium: https://01a08738-73f0-7847-b6a8-5789d289c158.codepen.dev/.codepen/screenshots/5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e/512.jpg
+              large: https://01a08738-73f0-7847-b6a8-5789d289c158.codepen.dev/.codepen/screenshots/5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e/800.jpg
+              xlarge: https://01a08738-73f0-7847-b6a8-5789d289c158.codepen.dev/.codepen/screenshots/5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e/1280.jpg
+            saved_version:
+              id: 01a08853-f1ab-7967-812e-eda134bd9e61
+              pen_id: 01a08738-73f0-7847-b6a8-5789d289c158
+              hash: 5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e
+              created_at: 2026-09-09T22:25:02Z
+              deployed: false
+              build:
+                id: 01a08853-f1ab-7967-812e-eda134bd9e61
+                status: Success
+                started_at: 2026-09-09T22:25:02Z
+                ended_at: 2026-09-09T22:25:05Z
+                rounds: 1
+                diagnostics: []
+                errors: []
+                applied_patches: []
+                patches: []
+                version_id: 01a08853-f1ab-7967-812e-eda134bd9e61
+                next_id: null
+                previous_id: null
+              preview_url: https://pv-01a08853-f1ab-7967-812e-eda134bd9e61.codepen.dev/
+              saved: true
+              label: null
+            deployment:
+              id: kRxnnr
+              version_id: 01a08738-73f0-7848-b8bf-e8e7e91b1ae2
+              url: https://cheerful-term-baboon.codepen.app/
+              custom_domains: []
+              created_at: 2026-09-09T22:23:40Z
+              updated_at: 2026-09-09T22:23:40Z
+            settings:
+              auto_deploy: false
+              auto_run: true
+              auto_save: true
+              indent_with: spaces
+              tab_size: 2
+        ClassicPen:
+          summary: A Classic Pen, read-only, with no versions
+          value:
+            id: RNprEMR
+            title: Sketchpad
+            description: Canvas drawing app.
+            tags:
+              - canvas
+              - drawing
+            access: Public
+            password: null
+            template: false
+            popularity: 6
+            loves_count: 1
+            views_count: 13
+            editor: Classic
+            created_at: 2026-09-05T11:17:51.120816Z
+            updated_at: 2026-09-05T14:26:55.544432Z
+            urls:
+              editor: https://codepen.io/yourname/pen/RNprEMR
+              preview: https://cdpn.io/yourname/fullcpgrid/RNprEMR/
+            screenshot_urls:
+              small: https://shots.codepen.io/yourname/pen/RNprEMR-320.jpg?version=1788618415
+              medium: https://shots.codepen.io/yourname/pen/RNprEMR-512.jpg?version=1788618415
+              large: https://shots.codepen.io/yourname/pen/RNprEMR-800.jpg?version=1788618415
+              xlarge: https://shots.codepen.io/yourname/pen/RNprEMR-1280.jpg?version=1788618415
+            saved_version: null
+            deployment: null
+            settings:
+              auto_deploy: false
+              auto_run: true
+              auto_save: true
+              indent_with: spaces
+              tab_size: 2
+        PenList:
+          summary: One page holding a 2.0 Pen and a Classic Pen
+          value:
+            - id: 01a08738-73f0-7847-b6a8-5789d289c158
+              title: Hello
+              description: Made with the API
+              tags:
+                - api
+                - demo
+              access: Private
+              password: null
+              template: false
+              popularity: 12
+              loves_count: 3
+              views_count: 41
+              editor: V2
+              created_at: 2026-09-09T22:23:39Z
+              updated_at: 2026-09-09T22:25:02Z
+              urls:
+                editor: https://codepen.io/editor/yourname/pen/01a08738-73f0-7847-b6a8-5789d289c158
+                preview: https://01a08738-73f0-7847-b6a8-5789d289c158.codepen.dev/
+              screenshot_urls:
+                small: https://01a08738-73f0-7847-b6a8-5789d289c158.codepen.dev/.codepen/screenshots/5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e/320.jpg
+                medium: https://01a08738-73f0-7847-b6a8-5789d289c158.codepen.dev/.codepen/screenshots/5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e/512.jpg
+                large: https://01a08738-73f0-7847-b6a8-5789d289c158.codepen.dev/.codepen/screenshots/5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e/800.jpg
+                xlarge: https://01a08738-73f0-7847-b6a8-5789d289c158.codepen.dev/.codepen/screenshots/5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e/1280.jpg
+              saved_version:
+                id: 01a08853-f1ab-7967-812e-eda134bd9e61
+                pen_id: 01a08738-73f0-7847-b6a8-5789d289c158
+                hash: 5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e
+                created_at: 2026-09-09T22:25:02Z
+                deployed: false
+                build:
+                  id: 01a08853-f1ab-7967-812e-eda134bd9e61
+                  status: Success
+                  started_at: 2026-09-09T22:25:02Z
+                  ended_at: 2026-09-09T22:25:05Z
+                  rounds: 1
+                  diagnostics: []
+                  errors: []
+                  applied_patches: []
+                  patches: []
+                  version_id: 01a08853-f1ab-7967-812e-eda134bd9e61
+                  next_id: null
+                  previous_id: null
+                preview_url: https://pv-01a08853-f1ab-7967-812e-eda134bd9e61.codepen.dev/
+                saved: true
+                label: null
+              deployment:
+                id: kRxnnr
+                version_id: 01a08738-73f0-7848-b8bf-e8e7e91b1ae2
+                url: https://cheerful-term-baboon.codepen.app/
+                custom_domains: []
+                created_at: 2026-09-09T22:23:40Z
+                updated_at: 2026-09-09T22:23:40Z
+              settings:
+                auto_deploy: false
+                auto_run: true
+                auto_save: true
+                indent_with: spaces
+                tab_size: 2
+            - id: RNprEMR
+              title: Sketchpad
+              description: Canvas drawing app.
+              tags:
+                - canvas
+                - drawing
+              access: Public
+              password: null
+              template: false
+              popularity: 6
+              loves_count: 1
+              views_count: 13
+              editor: Classic
+              created_at: 2026-09-05T11:17:51.120816Z
+              updated_at: 2026-09-05T14:26:55.544432Z
+              urls:
+                editor: https://codepen.io/yourname/pen/RNprEMR
+                preview: https://cdpn.io/yourname/fullcpgrid/RNprEMR/
+              screenshot_urls:
+                small: https://shots.codepen.io/yourname/pen/RNprEMR-320.jpg?version=1788618415
+                medium: https://shots.codepen.io/yourname/pen/RNprEMR-512.jpg?version=1788618415
+                large: https://shots.codepen.io/yourname/pen/RNprEMR-800.jpg?version=1788618415
+                xlarge: https://shots.codepen.io/yourname/pen/RNprEMR-1280.jpg?version=1788618415
+              saved_version: null
+              deployment: null
+              settings:
+                auto_deploy: false
+                auto_run: true
+                auto_save: true
+                indent_with: spaces
+                tab_size: 2
+        PenWithBuild:
+          summary: A Pen just created, with the build of its newest version
+          value:
+            id: 01a0884f-5a21-7b3c-9d4e-6f7a8b9c0d1e
+            title: Hello
+            description: Made with the API
+            tags:
+              - api
+              - demo
+            access: Private
+            password: null
+            template: false
+            popularity: 0
+            loves_count: 0
+            views_count: 0
+            editor: V2
+            created_at: 2026-09-09T22:30:11Z
+            updated_at: 2026-09-09T22:30:11Z
+            urls:
+              editor: https://codepen.io/editor/yourname/pen/01a0884f-5a21-7b3c-9d4e-6f7a8b9c0d1e
+              preview: https://01a0884f-5a21-7b3c-9d4e-6f7a8b9c0d1e.codepen.dev/
+            screenshot_urls:
+              small: https://01a0884f-5a21-7b3c-9d4e-6f7a8b9c0d1e.codepen.dev/.codepen/screenshots/e2c4a6f8b0d1e3c5a7f9b2d4c6e8a0f1b3d5c7e9a2f4b6d8c0e1a3f5b7d9c2e4a6/320.jpg
+              medium: https://01a0884f-5a21-7b3c-9d4e-6f7a8b9c0d1e.codepen.dev/.codepen/screenshots/e2c4a6f8b0d1e3c5a7f9b2d4c6e8a0f1b3d5c7e9a2f4b6d8c0e1a3f5b7d9c2e4a6/512.jpg
+              large: https://01a0884f-5a21-7b3c-9d4e-6f7a8b9c0d1e.codepen.dev/.codepen/screenshots/e2c4a6f8b0d1e3c5a7f9b2d4c6e8a0f1b3d5c7e9a2f4b6d8c0e1a3f5b7d9c2e4a6/800.jpg
+              xlarge: https://01a0884f-5a21-7b3c-9d4e-6f7a8b9c0d1e.codepen.dev/.codepen/screenshots/e2c4a6f8b0d1e3c5a7f9b2d4c6e8a0f1b3d5c7e9a2f4b6d8c0e1a3f5b7d9c2e4a6/1280.jpg
+            saved_version:
+              id: 01a0884f-5a22-7c4d-8e5f-7a8b9c0d1e2f
+              pen_id: 01a0884f-5a21-7b3c-9d4e-6f7a8b9c0d1e
+              hash: e2c4a6f8b0d1e3c5a7f9b2d4c6e8a0f1b3d5c7e9a2f4b6d8c0e1a3f5b7d9c2e4a6
+              created_at: 2026-09-09T22:30:11Z
+              deployed: false
+              build:
+                id: 01a0884f-5a22-7c4d-8e5f-7a8b9c0d1e2f
+                status: Success
+                started_at: 2026-09-09T22:30:12Z
+                ended_at: 2026-09-09T22:30:14Z
+                rounds: 1
+                diagnostics: []
+                errors: []
+                applied_patches: []
+                patches: []
+                version_id: 01a0884f-5a22-7c4d-8e5f-7a8b9c0d1e2f
+                next_id: null
+                previous_id: null
+              preview_url: https://pv-01a0884f-5a22-7c4d-8e5f-7a8b9c0d1e2f.codepen.dev/
+              saved: true
+              label: null
+            deployment: null
+            settings:
+              auto_deploy: false
+              auto_run: true
+              auto_save: true
+              indent_with: spaces
+              tab_size: 2
+            build:
+              id: 01a0884f-5a22-7c4d-8e5f-7a8b9c0d1e2f
+              status: Success
+              started_at: 2026-09-09T22:30:12Z
+              ended_at: 2026-09-09T22:30:14Z
+              rounds: 1
+              diagnostics: []
+              errors: []
+              applied_patches: []
+              patches: []
+              version_id: 01a0884f-5a22-7c4d-8e5f-7a8b9c0d1e2f
+              next_id: null
+              previous_id: null
+        BuildQueued:
+          summary: A build that has not started (the write was sent with wait=0)
+          value:
+            id: 01a08853-f1ab-7967-812e-eda134bd9e61
+            status: Queued
+            started_at: null
+            ended_at: null
+            rounds: 1
+            diagnostics: []
+            errors: []
+            applied_patches: []
+            patches: []
+            version_id: 01a08853-f1ab-7967-812e-eda134bd9e61
+            next_id: null
+            previous_id: null
+        BuildCanceled:
+          summary: Canceled because the compiler asked for a /tsconfig.json; follow next_id
+          value:
+            id: 01a08853-f1ab-7967-812e-eda134bd9e61
+            status: Canceled
+            started_at: 2026-09-09T22:25:02Z
+            ended_at: 2026-09-09T22:25:03Z
+            rounds: 1
+            diagnostics:
+              - type: Information
+                scope: BuildStep
+                message: pen version requires changes
+                code: null
+                url: null
+                block_name: null
+                path: null
+                file_id: null
+                range: null
+            errors: []
+            applied_patches: []
+            patches:
+              - type: create
+                path: /tsconfig.json
+                file_id: null
+                content: '{ "compilerOptions": { "target": "ES2022", "module": "ESNext" } }'
+            version_id: 01a08853-f1ab-7967-812e-eda134bd9e61
+            next_id: 01a08854-2c10-7c7e-9b1a-3f0d5a6b7c8d
+            previous_id: null
+        BuildPatched:
+          summary: The build of the version the API saved with the compiler's changes applied
+          value:
+            id: 01a08854-2c10-7c7e-9b1a-3f0d5a6b7c8d
+            status: Success
+            started_at: 2026-09-09T22:25:04Z
+            ended_at: 2026-09-09T22:25:07Z
+            rounds: 2
+            diagnostics: []
+            errors: []
+            applied_patches:
+              - type: create
+                path: /tsconfig.json
+                file_id: null
+                content: '{ "compilerOptions": { "target": "ES2022", "module": "ESNext" } }'
+            patches: []
+            files:
+              - id: 01a08854-2c11-7d01-8a2b-4c6e8f0a2b4d
+                path: /src/app.js
+                name: app.js
+                content_hash: 0a28c4e6f8b1d3a5c7e9f2b4d6a8c0e1f3b5d7a9c2e4f6b8d0a1c3e5f7b9d2a4
+                is_binary: false
+                content: const n = 1;
+                url: https://pv-01a08854-2c10-7c7e-9b1a-3f0d5a6b7c8d.codepen.dev/src/app.js
+                bytes: 12
+                content_type: text/javascript
+            version_id: 01a08854-2c10-7c7e-9b1a-3f0d5a6b7c8d
+            next_id: null
+            previous_id: 01a08853-f1ab-7967-812e-eda134bd9e61
+        BuildFailed:
+          summary: A build that failed on a type error; the files are saved anyway
+          value:
+            id: 01a05962-f075-76e8-a2e5-87b46107c5cb
+            status: Failed
+            started_at: 2026-09-09T22:40:02Z
+            ended_at: 2026-09-09T22:40:06Z
+            rounds: 1
+            diagnostics:
+              - type: Error
+                scope: File
+                message: Untyped function calls may not accept type arguments.
+                code: '2347'
+                url: null
+                block_name: typescript-5
+                path: /hooks/useView.ts
+                file_id: 01a058ff-8383-7649-817e-3f37b1fed707
+                range:
+                  start:
+                    line: 17
+                    column: 23
+                    position: 779
+                  end:
+                    line: 17
+                    column: 51
+                    position: 807
+              - type: Information
+                scope: BuildStep
+                message: previous step failed
+                code: null
+                url: null
+                block_name: null
+                path: null
+                file_id: null
+                range: null
+            errors:
+              - type: Error
+                scope: File
+                message: Untyped function calls may not accept type arguments.
+                code: '2347'
+                url: null
+                block_name: typescript-5
+                path: /hooks/useView.ts
+                file_id: 01a058ff-8383-7649-817e-3f37b1fed707
+                range:
+                  start:
+                    line: 17
+                    column: 23
+                    position: 779
+                  end:
+                    line: 17
+                    column: 51
+                    position: 807
+            applied_patches: []
+            patches: []
+            version_id: 01a05962-f075-76e8-a2e5-87b46107c5cb
+            next_id: null
+            previous_id: null
+        WriteResult:
+          summary: A write that waited for its build to succeed
+          value:
+            pen:
+              id: 01a08738-73f0-7847-b6a8-5789d289c158
+              title: Hello
+              description: Made with the API
+              tags:
+                - api
+                - demo
+              access: Private
+              password: null
+              template: false
+              popularity: 12
+              loves_count: 3
+              views_count: 41
+              editor: V2
+              created_at: 2026-09-09T22:23:39Z
+              updated_at: 2026-09-09T22:25:02Z
+              urls:
+                editor: https://codepen.io/editor/yourname/pen/01a08738-73f0-7847-b6a8-5789d289c158
+                preview: https://01a08738-73f0-7847-b6a8-5789d289c158.codepen.dev/
+              screenshot_urls:
+                small: https://01a08738-73f0-7847-b6a8-5789d289c158.codepen.dev/.codepen/screenshots/5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e/320.jpg
+                medium: https://01a08738-73f0-7847-b6a8-5789d289c158.codepen.dev/.codepen/screenshots/5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e/512.jpg
+                large: https://01a08738-73f0-7847-b6a8-5789d289c158.codepen.dev/.codepen/screenshots/5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e/800.jpg
+                xlarge: https://01a08738-73f0-7847-b6a8-5789d289c158.codepen.dev/.codepen/screenshots/5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e/1280.jpg
+              saved_version:
+                id: 01a08853-f1ab-7967-812e-eda134bd9e61
+                pen_id: 01a08738-73f0-7847-b6a8-5789d289c158
+                hash: 5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e
+                created_at: 2026-09-09T22:25:02Z
+                deployed: false
+                build:
+                  id: 01a08853-f1ab-7967-812e-eda134bd9e61
+                  status: Success
+                  started_at: 2026-09-09T22:25:02Z
+                  ended_at: 2026-09-09T22:25:05Z
+                  rounds: 1
+                  diagnostics: []
+                  errors: []
+                  applied_patches: []
+                  patches: []
+                  version_id: 01a08853-f1ab-7967-812e-eda134bd9e61
+                  next_id: null
+                  previous_id: null
+                preview_url: https://pv-01a08853-f1ab-7967-812e-eda134bd9e61.codepen.dev/
+                saved: true
+                label: null
+              deployment:
+                id: kRxnnr
+                version_id: 01a08738-73f0-7848-b8bf-e8e7e91b1ae2
+                url: https://cheerful-term-baboon.codepen.app/
+                custom_domains: []
+                created_at: 2026-09-09T22:23:40Z
+                updated_at: 2026-09-09T22:23:40Z
+              settings:
+                auto_deploy: false
+                auto_run: true
+                auto_save: true
+                indent_with: spaces
+                tab_size: 2
+            version:
+              id: 01a08853-f1ab-7967-812e-eda134bd9e61
+              pen_id: 01a08738-73f0-7847-b6a8-5789d289c158
+              hash: 5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e
+              created_at: 2026-09-09T22:25:02Z
+              deployed: false
+              build:
+                id: 01a08853-f1ab-7967-812e-eda134bd9e61
+                status: Success
+                started_at: 2026-09-09T22:25:02Z
+                ended_at: 2026-09-09T22:25:05Z
+                rounds: 1
+                diagnostics: []
+                errors: []
+                applied_patches: []
+                patches: []
+                files:
+                  - id: 01a08853-f1ac-7a01-8b3d-2c4e6f8a0b1d
+                    path: /index.html
+                    name: index.html
+                    content_hash: 9f2e4b6d8a0c1e3f5b7d9a2c4e6f8b0d1a3c5e7f9b2d4a6c8e0f1b3d5a7c9e2f
+                    is_binary: false
+                    content: <script src="src/app.js"></script>
+                    url: https://pv-01a08853-f1ab-7967-812e-eda134bd9e61.codepen.dev/index.html
+                    bytes: 34
+                    content_type: text/html
+                  - id: 01a08853-f1ac-7a02-9c4e-3d5f7a9b1c2e
+                    path: /src/app.js
+                    name: app.js
+                    content_hash: 71c0d5be0c3f4a8e7b1d9e2f6a3c5b8d0e4f7a1b2c3d4e5f6a7b8c9d0e1f2a3b
+                    is_binary: false
+                    content: console.log("moved")
+                    url: https://pv-01a08853-f1ab-7967-812e-eda134bd9e61.codepen.dev/src/app.js
+                    bytes: 20
+                    content_type: text/javascript
+                version_id: 01a08853-f1ab-7967-812e-eda134bd9e61
+                next_id: null
+                previous_id: null
+              preview_url: https://pv-01a08853-f1ab-7967-812e-eda134bd9e61.codepen.dev/
+              files:
+                - id: 01a08738-73f1-7a10-9c42-1f2d3e4b5a60
+                  path: /index.html
+                  name: index.html
+                  content_hash: 9f2e4b6d8a0c1e3f5b7d9a2c4e6f8b0d1a3c5e7f9b2d4a6c8e0f1b3d5a7c9e2f
+                  is_binary: false
+                  content: <script src="src/app.js"></script>
+                  url: https://01a08738-73f0-7847-b6a8-5789d289c158.codepenusercontent.com/index.html
+                  bytes: 34
+                  content_type: text/html
+                - id: 01a0884b-3177-71c3-a1c2-9452bfb9a3fb
+                  path: /src/app.js
+                  name: app.js
+                  content_hash: 71c0d5be0c3f4a8e7b1d9e2f6a3c5b8d0e4f7a1b2c3d4e5f6a7b8c9d0e1f2a3b
+                  is_binary: false
+                  content: console.log("moved")
+                  url: https://01a08738-73f0-7847-b6a8-5789d289c158.codepenusercontent.com/src/app.js
+                  bytes: 20
+                  content_type: text/javascript
+              saved: true
+              label: null
+            build:
+              id: 01a08853-f1ab-7967-812e-eda134bd9e61
+              status: Success
+              started_at: 2026-09-09T22:25:02Z
+              ended_at: 2026-09-09T22:25:05Z
+              rounds: 1
+              diagnostics: []
+              errors: []
+              applied_patches: []
+              patches: []
+              files:
+                - id: 01a08853-f1ac-7a01-8b3d-2c4e6f8a0b1d
+                  path: /index.html
+                  name: index.html
+                  content_hash: 9f2e4b6d8a0c1e3f5b7d9a2c4e6f8b0d1a3c5e7f9b2d4a6c8e0f1b3d5a7c9e2f
+                  is_binary: false
+                  content: <script src="src/app.js"></script>
+                  url: https://pv-01a08853-f1ab-7967-812e-eda134bd9e61.codepen.dev/index.html
+                  bytes: 34
+                  content_type: text/html
+                - id: 01a08853-f1ac-7a02-9c4e-3d5f7a9b1c2e
+                  path: /src/app.js
+                  name: app.js
+                  content_hash: 71c0d5be0c3f4a8e7b1d9e2f6a3c5b8d0e4f7a1b2c3d4e5f6a7b8c9d0e1f2a3b
+                  is_binary: false
+                  content: console.log("moved")
+                  url: https://pv-01a08853-f1ab-7967-812e-eda134bd9e61.codepen.dev/src/app.js
+                  bytes: 20
+                  content_type: text/javascript
+              version_id: 01a08853-f1ab-7967-812e-eda134bd9e61
+              next_id: null
+              previous_id: null
+        WriteResultQueued:
+          summary: A write sent with wait=0, answered before its build ran
+          value:
+            pen:
+              id: 01a08738-73f0-7847-b6a8-5789d289c158
+              title: Hello
+              description: Made with the API
+              tags:
+                - api
+                - demo
+              access: Private
+              password: null
+              template: false
+              popularity: 12
+              loves_count: 3
+              views_count: 41
+              editor: V2
+              created_at: 2026-09-09T22:23:39Z
+              updated_at: 2026-09-09T22:25:02Z
+              urls:
+                editor: https://codepen.io/editor/yourname/pen/01a08738-73f0-7847-b6a8-5789d289c158
+                preview: https://01a08738-73f0-7847-b6a8-5789d289c158.codepen.dev/
+              screenshot_urls:
+                small: https://01a08738-73f0-7847-b6a8-5789d289c158.codepen.dev/.codepen/screenshots/5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e/320.jpg
+                medium: https://01a08738-73f0-7847-b6a8-5789d289c158.codepen.dev/.codepen/screenshots/5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e/512.jpg
+                large: https://01a08738-73f0-7847-b6a8-5789d289c158.codepen.dev/.codepen/screenshots/5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e/800.jpg
+                xlarge: https://01a08738-73f0-7847-b6a8-5789d289c158.codepen.dev/.codepen/screenshots/5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e/1280.jpg
+              saved_version:
+                id: 01a08853-f1ab-7967-812e-eda134bd9e61
+                pen_id: 01a08738-73f0-7847-b6a8-5789d289c158
+                hash: 5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e
+                created_at: 2026-09-09T22:25:02Z
+                deployed: false
+                build:
+                  id: 01a08853-f1ab-7967-812e-eda134bd9e61
+                  status: Success
+                  started_at: 2026-09-09T22:25:02Z
+                  ended_at: 2026-09-09T22:25:05Z
+                  rounds: 1
+                  diagnostics: []
+                  errors: []
+                  applied_patches: []
+                  patches: []
+                  version_id: 01a08853-f1ab-7967-812e-eda134bd9e61
+                  next_id: null
+                  previous_id: null
+                preview_url: https://pv-01a08853-f1ab-7967-812e-eda134bd9e61.codepen.dev/
+                saved: true
+                label: null
+              deployment:
+                id: kRxnnr
+                version_id: 01a08738-73f0-7848-b8bf-e8e7e91b1ae2
+                url: https://cheerful-term-baboon.codepen.app/
+                custom_domains: []
+                created_at: 2026-09-09T22:23:40Z
+                updated_at: 2026-09-09T22:23:40Z
+              settings:
+                auto_deploy: false
+                auto_run: true
+                auto_save: true
+                indent_with: spaces
+                tab_size: 2
+            version:
+              id: 01a08853-f1ab-7967-812e-eda134bd9e61
+              pen_id: 01a08738-73f0-7847-b6a8-5789d289c158
+              hash: 5d1e8f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e
+              created_at: 2026-09-09T22:25:02Z
+              deployed: false
+              build:
+                id: 01a08853-f1ab-7967-812e-eda134bd9e61
+                status: Queued
+                started_at: null
+                ended_at: null
+                rounds: 1
+                diagnostics: []
+                errors: []
+                applied_patches: []
+                patches: []
+                version_id: 01a08853-f1ab-7967-812e-eda134bd9e61
+                next_id: null
+                previous_id: null
+              preview_url: https://pv-01a08853-f1ab-7967-812e-eda134bd9e61.codepen.dev/
+              files:
+                - id: 01a08738-73f1-7a10-9c42-1f2d3e4b5a60
+                  path: /index.html
+                  name: index.html
+                  content_hash: 9f2e4b6d8a0c1e3f5b7d9a2c4e6f8b0d1a3c5e7f9b2d4a6c8e0f1b3d5a7c9e2f
+                  is_binary: false
+                  content: <script src="src/app.js"></script>
+                  url: https://01a08738-73f0-7847-b6a8-5789d289c158.codepenusercontent.com/index.html
+                  bytes: 34
+                  content_type: text/html
+                - id: 01a0884b-3177-71c3-a1c2-9452bfb9a3fb
+                  path: /src/app.js
+                  name: app.js
+                  content_hash: 71c0d5be0c3f4a8e7b1d9e2f6a3c5b8d0e4f7a1b2c3d4e5f6a7b8c9d0e1f2a3b
+                  is_binary: false
+                  content: console.log("moved")
+                  url: https://01a08738-73f0-7847-b6a8-5789d289c158.codepenusercontent.com/src/app.js
+                  bytes: 20
+                  content_type: text/javascript
+              saved: true
+              label: null
+            build:
+              id: 01a08853-f1ab-7967-812e-eda134bd9e61
+              status: Queued
+              started_at: null
+              ended_at: null
+              rounds: 1
+              diagnostics: []
+              errors: []
+              applied_patches: []
+              patches: []
+              version_id: 01a08853-f1ab-7967-812e-eda134bd9e61
+              next_id: null
+              previous_id: null
+        CollaboratorList:
+          summary: The owner and one editor
+          value:
+            - username: yourname
+              name: Your Name
+              role: Owner
+              is_team_member: false
+            - username: teammate
+              name: Team Mate
+              role: Editor
+              is_team_member: false
+        InviteList:
+          summary: One pending invite
+          value:
+            - id: 01a0886a-0b1c-7d2e-8f3a-4b5c6d7e8f90
+              email: null
+              username: teammate
+              role: Editor
+              created_at: 2026-09-09T22:23:39Z
+        Collection:
+          summary: A public Collection
+          value:
+            id: QbaoZL
+            title: Demos
+            description: ''
+            access: Public
+            items_count: 3
+            popularity: 4
+            created_at: 2026-09-09T22:23:39Z
+            updated_at: 2026-09-09T22:23:40Z
+            url: https://codepen.io/collection/QbaoZL
+        CollectionList:
+          summary: One page of Collections
+          value:
+            - id: QbaoZL
+              title: Demos
+              description: ''
+              access: Public
+              items_count: 3
+              popularity: 4
+              created_at: 2026-09-09T22:23:39Z
+              updated_at: 2026-09-09T22:23:40Z
+              url: https://codepen.io/collection/QbaoZL
+        Asset:
+          summary: A binary Asset
+          value:
+            id: k7Ym0R
+            filename: logo.png
+            url: https://assets.codepen.io/1/logo.png
+            is_binary: true
+            created_at: 2026-09-09T22:23:39Z
+            updated_at: 2026-09-09T22:23:40Z
+        AssetList:
+          summary: One page of Assets
+          value:
+            - id: k7Ym0R
+              filename: logo.png
+              url: https://assets.codepen.io/1/logo.png
+              is_binary: true
+              created_at: 2026-09-09T22:23:39Z
+              updated_at: 2026-09-09T22:23:40Z
+            - id: Lq3vNp
+              filename: theme.css
+              url: https://assets.codepen.io/1/theme.css
+              is_binary: false
+              created_at: 2026-09-09T22:24:10Z
+              updated_at: 2026-09-09T22:24:10Z
+        AssetDetailText:
+          summary: A text Asset with its content
+          value:
+            id: Lq3vNp
+            filename: theme.css
+            url: https://assets.codepen.io/1/theme.css
+            is_binary: false
+            created_at: 2026-09-09T22:24:10Z
+            updated_at: 2026-09-09T22:24:10Z
+            content: 'body { color: red }'
+        AssetDetailBinary:
+          summary: A binary Asset; its bytes are at url
+          value:
+            id: k7Ym0R
+            filename: logo.png
+            url: https://assets.codepen.io/1/logo.png
+            is_binary: true
+            created_at: 2026-09-09T22:23:39Z
+            updated_at: 2026-09-09T22:23:40Z
+            content: null
+        PenCreateRequest:
+          summary: A private Pen with two files
+          value:
+            title: Hello
+            description: Made with the API
+            tags:
+              - api
+              - demo
+            access: Private
+            files:
+              - path: index.html
+                content: <h1>Hello</h1>
+              - path: style.css
+                content: 'h1 { color: teal }'
+        PenUpdateRequest:
+          summary: Retitle, retag and make public
+          value:
+            title: Hello, world
+            tags:
+              - api
+              - demo
+              - v2
+            access: Public
+        PenProtectRequest:
+          summary: Make a Pen Protected
+          value:
+            access: Protected
+            password: correct horse battery
+        PenForkRequest:
+          summary: Fork under a new title
+          value:
+            title: My copy
+        PenSettingsUpdateRequest:
+          summary: Auto-deploy, indented with tabs
+          value:
+            auto_deploy: true
+            indent_with: tabs
+            tab_size: 4
+        FilesWriteRequest:
+          summary: Move and rewrite a file by ID, rewrite one by path, delete one
+          value:
+            expected_version_id: 01a08738-73f0-7848-b8bf-e8e7e91b1ae2
+            files:
+              - id: 01a0884b-3177-71c3-a1c2-9452bfb9a3fb
+                path: src/app.js
+                content: console.log("moved")
+              - path: index.html
+                content: <script src="src/app.js"></script>
+              - path: style.css
+                delete: true
+        FileWriteRequest:
+          summary: Write one text file
+          value:
+            content: console.log(1)
+            expected_version_id: 01a08738-73f0-7848-b8bf-e8e7e91b1ae2
+        CollaboratorInviteRequest:
+          summary: Invite by username as an Editor
+          value:
+            email_or_username: teammate
+            role: Editor
+        ForbiddenClassicError:
+          summary: A write to a Classic Pen
+          value:
+            message: Classic Pens are read-only through the API
+            code: FORBIDDEN
+        ForbiddenPlanError:
+          summary: A plan limit
+          value:
+            message: Private Pens need PRO. Upgrade at https://codepen.io/pricing
+            code: FORBIDDEN
+        NotFoundError:
+          value:
+            message: pen not found
+            code: NOT_FOUND
+        InternalError:
+          value:
+            message: internal error
+            code: INTERNAL
+  - target: $.paths['/v2/pens'].get.responses['200'].content['application/json']
+    update:
+      examples:
+        pens:
+          $ref: '#/components/examples/PenList'
+  - target: $.components.responses.Internal.content['application/json']
+    update:
+      examples:
+        error:
+          $ref: '#/components/examples/InternalError'
+  - target: $.paths['/v2/pens'].post.requestBody.content['application/json']
+    update:
+      examples:
+        withFiles:
+          $ref: '#/components/examples/PenCreateRequest'
+  - target: $.paths['/v2/pens'].post.responses['201'].content['application/json']
+    update:
+      examples:
+        created:
+          $ref: '#/components/examples/PenWithBuild'
+  - target: $.components.responses.Forbidden.content['application/json']
+    update:
+      examples:
+        classic:
+          $ref: '#/components/examples/ForbiddenClassicError'
+        plan:
+          $ref: '#/components/examples/ForbiddenPlanError'
+  - target: $.paths['/v2/pens/{id}'].get.responses['200'].content['application/json']
+    update:
+      examples:
+        v2:
+          $ref: '#/components/examples/Pen'
+        classic:
+          $ref: '#/components/examples/ClassicPen'
+  - target: $.components.responses.NotFound.content['application/json']
+    update:
+      examples:
+        error:
+          $ref: '#/components/examples/NotFoundError'
+  - target: $.paths['/v2/pens/{id}'].patch.requestBody.content['application/json']
+    update:
+      examples:
+        details:
+          $ref: '#/components/examples/PenUpdateRequest'
+        protect:
+          $ref: '#/components/examples/PenProtectRequest'
+  - target: $.paths['/v2/pens/{id}'].patch.responses['200'].content['application/json']
+    update:
+      examples:
+        updated:
+          $ref: '#/components/examples/Pen'
+  - target: $.paths['/v2/pens/{id}/fork'].post.requestBody.content['application/json']
+    update:
+      examples:
+        retitle:
+          $ref: '#/components/examples/PenForkRequest'
+  - target: $.paths['/v2/pens/{id}/fork'].post.responses['201'].content['application/json']
+    update:
+      examples:
+        forked:
+          $ref: '#/components/examples/PenWithBuild'
+  - target: $.paths['/v2/pens/{id}/files'].get.responses['200'].content['application/json']
+    update:
+      examples:
+        files:
+          $ref: '#/components/examples/FileList'
+  - target: $.paths['/v2/pens/{id}/files'].put.requestBody.content['application/json']
+    update:
+      examples:
+        moveWriteDelete:
+          $ref: '#/components/examples/FilesWriteRequest'
+  - target: $.components.responses.FilesWrite.content['application/json']
+    update:
+      examples:
+        settled:
+          $ref: '#/components/examples/WriteResult'
+        notWaited:
+          $ref: '#/components/examples/WriteResultQueued'
+  - target: $.paths['/v2/pens/{id}/files/{path}'].get.responses['200'].content['application/json']
+    update:
+      examples:
+        text:
+          $ref: '#/components/examples/FileText'
+        binary:
+          $ref: '#/components/examples/FileBinary'
+  - target: $.paths['/v2/pens/{id}/files/{path}'].put.requestBody.content['application/json']
+    update:
+      examples:
+        text:
+          $ref: '#/components/examples/FileWriteRequest'
+  - target: $.paths['/v2/pens/{id}/versions'].get.responses['200'].content['application/json']
+    update:
+      examples:
+        versions:
+          $ref: '#/components/examples/VersionList'
+  - target: $.paths['/v2/pens/{id}/versions/{version_id}/restore'].post.responses['200'].content['application/json']
+    update:
+      examples:
+        restored:
+          $ref: '#/components/examples/Pen'
+  - target: $.paths['/v2/versions/{id}'].get.responses['200'].content['application/json']
+    update:
+      examples:
+        version:
+          $ref: '#/components/examples/VersionDetail'
+  - target: $.paths['/v2/builds/{id}'].get.responses['200'].content['application/json']
+    update:
+      examples:
+        success:
+          $ref: '#/components/examples/BuildSuccess'
+        queued:
+          $ref: '#/components/examples/BuildQueued'
+        canceledWithNext:
+          $ref: '#/components/examples/BuildCanceled'
+        patched:
+          $ref: '#/components/examples/BuildPatched'
+        failed:
+          $ref: '#/components/examples/BuildFailed'
+  - target: $.paths['/v2/pens/{id}/deployment'].put.requestBody.content['application/json']
+    update:
+      examples:
+        head:
+          summary: Deploy the saved head
+          value: {}
+  - target: $.paths['/v2/pens/{id}/deployment'].put.responses['200'].content['application/json']
+    update:
+      examples:
+        deployed:
+          $ref: '#/components/examples/Deployment'
+  - target: $.paths['/v2/pens/{id}/settings'].patch.requestBody.content['application/json']
+    update:
+      examples:
+        tabs:
+          $ref: '#/components/examples/PenSettingsUpdateRequest'
+  - target: $.paths['/v2/pens/{id}/settings'].patch.responses['200'].content['application/json']
+    update:
+      examples:
+        settings:
+          $ref: '#/components/examples/PenSettings'
+  - target: $.components.responses.Collaborators.content['application/json']
+    update:
+      examples:
+        collaborators:
+          $ref: '#/components/examples/CollaboratorList'
+  - target: $.paths['/v2/pens/{id}/collaborators'].post.requestBody.content['application/json']
+    update:
+      examples:
+        editor:
+          $ref: '#/components/examples/CollaboratorInviteRequest'
+  - target: $.components.responses.Invites.content['application/json']
+    update:
+      examples:
+        invites:
+          $ref: '#/components/examples/InviteList'
+  - target: $.paths['/v2/pens/{id}/collaborators/{username}'].patch.requestBody.content['application/json']
+    update:
+      examples:
+        viewer:
+          summary: Make a collaborator a Viewer
+          value:
+            role: Viewer
+  - target: $.paths['/v2/collections'].get.responses['200'].content['application/json']
+    update:
+      examples:
+        collections:
+          $ref: '#/components/examples/CollectionList'
+  - target: $.paths['/v2/collections'].post.requestBody.content['application/json']
+    update:
+      examples:
+        public:
+          summary: A public Collection
+          value:
+            title: Demos
+            access: Public
+  - target: $.paths['/v2/collections'].post.responses['201'].content['application/json']
+    update:
+      examples:
+        created:
+          $ref: '#/components/examples/Collection'
+  - target: $.components.responses.Collection.content['application/json']
+    update:
+      examples:
+        collection:
+          $ref: '#/components/examples/Collection'
+        updated:
+          $ref: '#/components/examples/Collection'
+  - target: $.paths['/v2/collections/{id}'].patch.requestBody.content['application/json']
+    update:
+      examples:
+        rename:
+          summary: Rename and describe
+          value:
+            title: Demos and experiments
+            description: Small things that worked.
+  - target: $.paths['/v2/collections/{id}/pens'].get.responses['200'].content['application/json']
+    update:
+      examples:
+        pens:
+          $ref: '#/components/examples/PenList'
+  - target: $.paths['/v2/assets'].get.responses['200'].content['application/json']
+    update:
+      examples:
+        assets:
+          $ref: '#/components/examples/AssetList'
+  - target: $.paths['/v2/assets'].post.requestBody.content['application/json']
+    update:
+      examples:
+        text:
+          summary: A text Asset as JSON
+          value:
+            filename: theme.css
+            content: 'body { color: red }'
+  - target: $.paths['/v2/assets'].post.responses['201'].content['application/json']
+    update:
+      examples:
+        created:
+          $ref: '#/components/examples/Asset'
+  - target: $.paths['/v2/assets/{id}'].get.responses['200'].content['application/json']
+    update:
+      examples:
+        text:
+          $ref: '#/components/examples/AssetDetailText'
+        binary:
+          $ref: '#/components/examples/AssetDetailBinary'
+  - target: $.paths['/v2/assets/{id}'].patch.requestBody.content['application/json']
+    update:
+      examples:
+        rename:
+          summary: Rename
+          value:
+            filename: theme-dark.css
+  - target: $.paths['/v2/assets/{id}'].patch.responses['200'].content['application/json']
+    update:
+      examples:
+        updated:
+          $ref: '#/components/examples/Asset'

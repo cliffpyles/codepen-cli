@@ -31,6 +31,8 @@ export const versionWithoutBuild: Schemas['Version'] = {
   hash: '',
   created_at: '',
   deployed: false,
+  saved: true,
+  label: null,
   preview_url: '',
 };
 
@@ -45,3 +47,12 @@ export const wrongCode: Schemas['ConflictError'] = {
 // @ts-expect-error an error must have a code
 export const noCode: Schemas['NotFoundError'] = { message: '' };
 export const notFound: Schemas['NotFoundError'] = { message: 'pen not found', code: 'NOT_FOUND' };
+// @ts-expect-error only a conflict names versions
+export const wrongField: Schemas['NotFoundError'] = { ...notFound, expected_version_id: fileId };
+
+// A hunk's misses can be read from an error's details.
+export const details: Schemas['BadUserInputError']['details'] = { misses: [] };
+
+// A hunk addresses its file by id or by path.
+// @ts-expect-error a hunk with no file
+export const hunk: Schemas['FileEdit'] = { old: 'a', new: 'b' };

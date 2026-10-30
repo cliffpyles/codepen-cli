@@ -10,11 +10,11 @@ export function findOperation(doc: JsonObject, operationId: string): Operation {
 }
 
 /**
- * Fills the operation's path template. Values are percent-encoded, except a parameter marked
- * `x-codepen-multi-segment`, whose slashes are kept.
+ * Fills the operation's path template, without the `/v2` the client adds. Values are
+ * percent-encoded, except a parameter marked `x-codepen-multi-segment`, whose slashes are kept.
  */
 export function expandPath(op: Operation, params: Record<string, string>): string {
-  return op.path.replace(/\{([^}]+)\}/g, (_, name: string) => {
+  return op.path.replace(/^\/v2/, '').replace(/\{([^}]+)\}/g, (_, name: string) => {
     const value = params[name];
     if (value === undefined) throw new Error(`${op.path} needs a value for {${name}}`);
     const param = op.parameters.find((p) => p.in === 'path' && p.name === name);

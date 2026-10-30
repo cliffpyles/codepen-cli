@@ -18,13 +18,25 @@ import type { components } from '../generated/codepen-api-v2.js';
 import type { Assert, Differences, Equals } from './parity.js';
 
 type Gen = components['schemas'];
+type GenError =
+  | Gen['BadUserInputError']
+  | Gen['UnauthenticatedError']
+  | Gen['ForbiddenError']
+  | Gen['NotFoundError']
+  | Gen['ConflictError']
+  | Gen['RateLimitedError']
+  | Gen['InternalError']
+  | Gen['BuildTimeoutError'];
 
 // ── Enums ──────────────────────────────────────────────────────────────────────────────────
 
 export type AccessParity = Assert<Equals<Hand.Access, Gen['PenAccess']>>;
-export type BuildStatusParity = Assert<Equals<Hand.BuildStatus, Gen['BuildStatus']>>;
+export type BuildStatusParity = Assert<Equals<Hand.BuildStatus, Gen['Build']['status']>>;
 export type RoleParity = Assert<Equals<Hand.Role, Gen['Role']>>;
-export type ErrorCodeParity = Assert<Equals<Hand.ApiErrorCode, Gen['ErrorCode']>>;
+// The hand-written type has no BUILD_TIMEOUT, which only a dry run answers and the client never sends one.
+export type ErrorCodeParity = Assert<
+  Equals<Hand.ApiErrorCode, Exclude<GenError['code'], 'BUILD_TIMEOUT'>>
+>;
 
 // ── Responses ──────────────────────────────────────────────────────────────────────────────
 
@@ -35,19 +47,19 @@ export type PenParity = Assert<
       // Conflicts through Version.build, Build.patches and Patch.content.
       conflicting: 'saved_version';
       looser:
-        | 'description'
-        | 'tags'
-        | 'password'
-        | 'template'
-        | 'popularity'
-        | 'editor'
         | 'created_at'
-        | 'updated_at'
-        | 'urls'
-        | 'screenshot_urls'
         | 'deployment'
-        | 'settings';
-      missing: 'loves_count' | 'views_count';
+        | 'description'
+        | 'editor'
+        | 'password'
+        | 'popularity'
+        | 'screenshot_urls'
+        | 'settings'
+        | 'tags'
+        | 'template'
+        | 'updated_at'
+        | 'urls';
+      missing: 'build' | 'loves_count' | 'views_count';
       handOnly: never;
     }
   >
@@ -55,34 +67,25 @@ export type PenParity = Assert<
 
 export type VersionParity = Assert<
   Equals<
-    Differences<Hand.Version, Gen['Version']>,
+    Differences<Hand.Version, Gen['VersionDetail']>,
     {
-      // Conflicts through Build.patches and Patch.content.
+      // Conflicts through Build.patches, Patch.content and Diagnostic.type.
       conflicting: 'build';
-      looser: 'pen_id' | 'hash' | 'created_at' | 'deployed' | 'preview_url';
-      missing: never;
-      // The hand-written Version also stands in for VersionDetail, which has files.
-      handOnly: 'files';
+      looser: 'created_at' | 'deployed' | 'files' | 'hash' | 'pen_id' | 'preview_url';
+      missing: 'label' | 'saved';
+      handOnly: never;
     }
   >
 >;
 
 export type BuildParity = Assert<
   Equals<
-    Differences<Hand.Build, Gen['BuildDetail']>,
+    Differences<Hand.Build, Gen['Build']>,
     {
-      // Patch.content can be null in the spec.
-      conflicting: 'applied_patches' | 'patches';
+      // Patch.content can be null, and Diagnostic.type can be Patch.
+      conflicting: 'applied_patches' | 'diagnostics' | 'errors' | 'patches';
       looser:
-        | 'started_at'
-        | 'ended_at'
-        | 'rounds'
-        | 'diagnostics'
-        | 'errors'
-        | 'files'
-        | 'version_id'
-        | 'next_id'
-        | 'previous_id';
+        'ended_at' | 'files' | 'next_id' | 'previous_id' | 'rounds' | 'started_at' | 'version_id';
       missing: never;
       handOnly: never;
     }
@@ -91,7 +94,7 @@ export type BuildParity = Assert<
 
 export type PatchParity = Assert<
   Equals<
-    Differences<Hand.Patch, Gen['Patch']>,
+    Differences<Hand.Patch, Gen['BuildPatch']>,
     {
       // The spec allows null content; the hand-written type allows only a string.
       conflicting: 'content';
@@ -104,10 +107,11 @@ export type PatchParity = Assert<
 
 export type DiagnosticParity = Assert<
   Equals<
-    Differences<Hand.Diagnostic, Gen['Diagnostic']>,
+    Differences<Hand.Diagnostic, Gen['BuildDiagnostic']>,
     {
-      conflicting: never;
-      looser: 'code' | 'url' | 'block_name' | 'path' | 'file_id' | 'range';
+      // The spec has a Patch type the hand-written type does not.
+      conflicting: 'type';
+      looser: 'block_name' | 'code' | 'file_id' | 'path' | 'range' | 'url';
       missing: never;
       handOnly: never;
     }
@@ -119,8 +123,8 @@ export type PenFileParity = Assert<
     Differences<Hand.PenFile, Gen['File']>,
     {
       conflicting: never;
-      looser: 'name' | 'content_hash' | 'is_binary' | 'content' | 'url';
-      missing: never;
+      looser: 'content' | 'content_hash' | 'is_binary' | 'name' | 'url';
+      missing: 'bytes' | 'content_type';
       handOnly: never;
     }
   >
@@ -131,7 +135,7 @@ export type DeploymentParity = Assert<
     Differences<Hand.Deployment, Gen['Deployment']>,
     {
       conflicting: never;
-      looser: 'url' | 'custom_domains' | 'created_at' | 'updated_at';
+      looser: 'created_at' | 'custom_domains' | 'updated_at' | 'url';
       missing: never;
       handOnly: never;
     }
@@ -140,7 +144,7 @@ export type DeploymentParity = Assert<
 
 export type PenSettingsParity = Assert<
   Equals<
-    Differences<Hand.PenSettings, Gen['PenSettings']>,
+    Differences<Hand.PenSettings, Gen['Settings']>,
     {
       conflicting: never;
       looser: 'auto_deploy' | 'auto_run' | 'auto_save' | 'indent_with' | 'tab_size';
@@ -155,7 +159,7 @@ export type CollaboratorParity = Assert<
     Differences<Hand.Collaborator, Gen['Collaborator']>,
     {
       conflicting: never;
-      looser: 'name' | 'is_team_member';
+      looser: 'is_team_member' | 'name';
       missing: never;
       handOnly: never;
     }
@@ -164,11 +168,10 @@ export type CollaboratorParity = Assert<
 
 export type InviteParity = Assert<
   Equals<
-    Differences<Hand.Invite, Gen['Invite']>,
+    Differences<Hand.Invite, Gen['CollaboratorInvite']>,
     {
       conflicting: never;
-      // role: the hand-written type allows Owner, which an invite cannot have.
-      looser: 'email' | 'username' | 'role' | 'created_at';
+      looser: 'created_at' | 'email' | 'role' | 'username';
       missing: never;
       handOnly: never;
     }
@@ -180,9 +183,7 @@ export type CollectionParity = Assert<
     Differences<Hand.Collection, Gen['Collection']>,
     {
       conflicting: never;
-      // access: the hand-written type allows the Pen-only Protected and Collaborators.
-      looser: 'description' | 'access' | 'created_at' | 'updated_at';
-      // The hand-written type reads these through its index signature as unknown.
+      looser: 'access' | 'created_at' | 'description' | 'updated_at';
       missing: 'items_count' | 'popularity' | 'url';
       handOnly: never;
     }
@@ -191,10 +192,10 @@ export type CollectionParity = Assert<
 
 export type AssetParity = Assert<
   Equals<
-    Differences<Hand.Asset, Gen['AssetDetail']>,
+    Differences<Hand.Asset, Gen['AssetWithContent']>,
     {
       conflicting: never;
-      looser: 'url' | 'is_binary' | 'content' | 'created_at' | 'updated_at';
+      looser: 'content' | 'created_at' | 'is_binary' | 'updated_at' | 'url';
       missing: never;
       handOnly: never;
     }
@@ -203,10 +204,10 @@ export type AssetParity = Assert<
 
 export type WriteResultParity = Assert<
   Equals<
-    Differences<Hand.WriteResult, Gen['WriteResult']>,
+    Differences<Hand.WriteResult, Gen['FilesWriteResult']>,
     {
-      // All three conflict through Patch.content.
-      conflicting: 'pen' | 'version' | 'build';
+      // All three conflict through Patch.content and Diagnostic.type.
+      conflicting: 'build' | 'pen' | 'version';
       looser: never;
       missing: never;
       handOnly: never;
@@ -214,11 +215,9 @@ export type WriteResultParity = Assert<
   >
 >;
 
+// Every error the client can receive fits the hand-written body, which keeps only message and code.
 export type ErrorBodyParity = Assert<
-  Equals<
-    Differences<Hand.ApiErrorBody, Gen['Error']>,
-    { conflicting: never; looser: never; missing: never; handOnly: never }
-  >
+  [Exclude<GenError, { code: 'BUILD_TIMEOUT' }>] extends [Hand.ApiErrorBody] ? true : false
 >;
 
 // ── Requests ───────────────────────────────────────────────────────────────────────────────

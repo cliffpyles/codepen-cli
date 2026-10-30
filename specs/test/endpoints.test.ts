@@ -9,16 +9,16 @@ const idOf = (method: string, path: string) =>
 
 describe('endpoint coverage', () => {
   it('matches requests by method and path template, ignoring the query', () => {
-    expect(idOf('GET', '/pens?per_page=3&tags=a,b')).toBe('listPens');
-    expect(idOf('POST', '/pens?wait=0')).toBe('createPen');
-    expect(idOf('GET', '/pens/abc123')).toBe('getPen');
-    expect(idOf('GET', '/pens/abc123/files')).toBe('listPenFiles');
+    expect(idOf('GET', '/pens?per_page=3&tags=a,b')).toBe('pens');
+    expect(idOf('POST', '/pens?wait=0')).toBe('penCreate');
+    expect(idOf('GET', '/pens/abc123')).toBe('pen');
+    expect(idOf('GET', '/pens/abc123/files')).toBe('penFiles');
     expect(idOf('PUT', '/pens/abc123/versions/v1/restore')).toBeUndefined();
-    expect(idOf('POST', '/pens/abc123/versions/v1/restore')).toBe('restorePenVersion');
+    expect(idOf('POST', '/pens/abc123/versions/v1/restore')).toBe('penVersionRestore');
   });
 
   it('lets only the multi-segment file path span slashes', () => {
-    expect(idOf('GET', '/pens/abc123/files/src/deep/app.js')).toBe('getPenFile');
+    expect(idOf('GET', '/pens/abc123/files/src/deep/app.js')).toBe('penFile');
     expect(idOf('GET', '/collections/c1/pens/p1/extra')).toBeUndefined();
   });
 
@@ -30,7 +30,7 @@ describe('endpoint coverage', () => {
     ]);
     expect(coverage.covered).toBe(1);
     expect(coverage.uncovered).toHaveLength(ops.length - 1);
-    expect(coverage.uncovered).toContain('GET /pens/{id}');
+    expect(coverage.uncovered).toContain('GET /v2/pens/{id}');
     expect(coverage.unknown).toEqual([`GET ${api}/me`]);
   });
 });

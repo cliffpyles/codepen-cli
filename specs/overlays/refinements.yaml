@@ -1,0 +1,301 @@
+# What we add to CodePen's official spec, in OpenAPI Overlay 1.0 form. Each action only tightens or
+# adds detail; values valid here stay valid upstream, and test/hybrid.test.ts checks that.
+overlay: 1.0.0
+info:
+  title: Refinements to the CodePen API description
+  version: 1.0.0
+actions:
+  # Tooling: lists always page with Link, and a file path spans slashes.
+  - target: $.components.headers.Link
+    update:
+      required: true
+  - target: $.components.parameters.filePath
+    update:
+      x-codepen-multi-segment: true
+
+  # Values upstream gives only in prose.
+  - target: $.components.schemas.Settings.properties.indent_with
+    update:
+      enum: [tabs, spaces]
+  - target: $.components.schemas.BuildPatch.properties.type
+    update:
+      enum: [create, update, delete]
+  - target: $.components.schemas
+    update:
+      InviteRole:
+        type: string
+        description: A role that can be given to a collaborator.
+        enum: [Editor, Viewer]
+  - target: $.components.schemas.CollaboratorInvite.properties.role
+    update:
+      $ref: '#/components/schemas/InviteRole'
+
+  - target: $.components.schemas.Pen.properties.password
+    remove: true
+  - target: $.components.schemas.Pen.properties
+    update:
+      password:
+        type: 'null'
+        description: Write-only, so always null.
+
+  # Responses that always carry a field upstream marks optional.
+  - target: $.components.schemas
+    update:
+      PenWithBuild:
+        description: A Pen just made by a create or fork, with the build of its newest version.
+        allOf:
+          - $ref: '#/components/schemas/Pen'
+          - required: [build]
+      VersionDetail:
+        description: One version with its source files.
+        allOf:
+          - $ref: '#/components/schemas/Version'
+          - required: [files]
+  - target: $.paths['/v2/pens'].post.responses['201'].content['application/json'].schema
+    update:
+      $ref: '#/components/schemas/PenWithBuild'
+  - target: $.paths['/v2/pens/{id}/fork'].post.responses['201'].content['application/json'].schema
+    update:
+      $ref: '#/components/schemas/PenWithBuild'
+  - target: $.paths['/v2/versions/{id}'].get.responses['200'].content['application/json'].schema
+    update:
+      $ref: '#/components/schemas/VersionDetail'
+
+  # Request forms upstream gives only in prose, each its own schema so generated types can follow.
+  - target: $.components.schemas.FileChange
+    remove: true
+  - target: $.components.schemas.FileEdit
+    remove: true
+  - target: $.components.schemas
+    update:
+      FileWriteByPath:
+        type: object
+        description: Writes the file at `path`, creating it if needed.
+        required: [path, content]
+        properties:
+          path:
+            type: string
+          content:
+            type: string
+      FileWriteById:
+        type: object
+        description: Writes the file with that id, wherever it is.
+        required: [id, content]
+        properties:
+          id:
+            type: string
+          content:
+            type: string
+      FileMoveById:
+        type: object
+        description: Moves the file with that id to `path`, keeping its id. With `content`, writes it there too.
+        required: [id, path]
+        properties:
+          id:
+            type: string
+          path:
+            type: string
+          content:
+            type: string
+      FileDeleteByPath:
+        type: object
+        description: Deletes the file at `path`, or every file under it when it is a directory.
+        required: [path, delete]
+        properties:
+          path:
+            type: string
+          delete:
+            const: true
+      FileDeleteById:
+        type: object
+        description: Deletes the file with that id.
+        required: [id, delete]
+        properties:
+          id:
+            type: string
+          delete:
+            const: true
+      FileChange:
+        description: One change in a multi-file write, addressing a file by `path` or `id`.
+        oneOf:
+          - $ref: '#/components/schemas/FileWriteByPath'
+          - $ref: '#/components/schemas/FileWriteById'
+          - $ref: '#/components/schemas/FileMoveById'
+          - $ref: '#/components/schemas/FileDeleteByPath'
+          - $ref: '#/components/schemas/FileDeleteById'
+      FileEditById:
+        type: object
+        description: A hunk addressing a text file by id.
+        required: [id, old, new]
+        properties:
+          id:
+            type: string
+          old:
+            type: string
+            minLength: 1
+            description: Text that appears in the file exactly once, byte for byte.
+          new:
+            type: string
+            description: The replacement. An empty string deletes the matched text.
+          replace_all:
+            type: boolean
+            description: Replace every occurrence of `old` instead of requiring exactly one.
+      FileEditByPath:
+        type: object
+        description: A hunk addressing a text file by its full path.
+        required: [path, old, new]
+        properties:
+          path:
+            type: string
+          old:
+            type: string
+            minLength: 1
+            description: Text that appears in the file exactly once, byte for byte.
+          new:
+            type: string
+            description: The replacement. An empty string deletes the matched text.
+          replace_all:
+            type: boolean
+            description: Replace every occurrence of `old` instead of requiring exactly one.
+      FileEdit:
+        oneOf:
+          - $ref: '#/components/schemas/FileEditById'
+          - $ref: '#/components/schemas/FileEditByPath'
+      FilesWriteJsonRequest:
+        description: A multi-file write as JSON, which has no other parts to carry its changes.
+        allOf:
+          - $ref: '#/components/schemas/FilesWriteRequest'
+          - required: [files]
+      AssetCreateRequest:
+        description: A text Asset as JSON.
+        allOf:
+          - $ref: '#/components/schemas/AssetRequest'
+          - required: [filename, content]
+  - target: $.paths['/v2/pens/{id}/files'].put.requestBody.content['application/json'].schema
+    update:
+      $ref: '#/components/schemas/FilesWriteJsonRequest'
+  - target: $.paths['/v2/assets'].post.requestBody.content['application/json'].schema
+    update:
+      $ref: '#/components/schemas/AssetCreateRequest'
+
+  # One error schema per code, with only the fields that code carries. They replace Error.
+  - target: $.components.schemas.Error
+    remove: true
+  - target: $.components.schemas
+    update:
+      BadUserInputError:
+        type: object
+        required: [message, code]
+        properties:
+          message:
+            type: string
+          code:
+            const: BAD_USER_INPUT
+          field:
+            type: string
+            description: The argument it is about, when known.
+          details:
+            type: object
+            description: Structured detail, such as the `misses` of a hunk edit.
+            additionalProperties: true
+      UnauthenticatedError:
+        type: object
+        required: [message, code]
+        properties:
+          message:
+            type: string
+          code:
+            const: UNAUTHENTICATED
+      ForbiddenError:
+        type: object
+        required: [message, code]
+        properties:
+          message:
+            type: string
+          code:
+            const: FORBIDDEN
+      NotFoundError:
+        type: object
+        required: [message, code]
+        properties:
+          message:
+            type: string
+          code:
+            const: NOT_FOUND
+      ConflictError:
+        type: object
+        required: [message, code, expected_version_id, current_version_id]
+        properties:
+          message:
+            type: string
+          code:
+            const: CONFLICT
+          expected_version_id:
+            type: string
+          current_version_id:
+            type: string
+      RateLimitedError:
+        type: object
+        required: [message, code]
+        properties:
+          message:
+            type: string
+          code:
+            const: RATE_LIMITED
+          retry_after_seconds:
+            type: integer
+            description: Seconds until the counter resets.
+          limit:
+            type: integer
+            description: The allowance.
+          reset_at:
+            type: [string, 'null']
+            format: date-time
+            description: When the counter resets, when known.
+      InternalError:
+        type: object
+        required: [message, code]
+        properties:
+          message:
+            type: string
+          code:
+            const: INTERNAL
+      BuildTimeoutError:
+        type: object
+        required: [message, code]
+        properties:
+          message:
+            type: string
+          code:
+            const: BUILD_TIMEOUT
+          build_id:
+            type: string
+            description: The build to poll when it has an id.
+  - target: $.components.responses.BadRequest.content['application/json'].schema
+    update:
+      $ref: '#/components/schemas/BadUserInputError'
+  - target: $.components.responses.Unauthorized.content['application/json'].schema
+    update:
+      $ref: '#/components/schemas/UnauthenticatedError'
+  - target: $.components.responses.Forbidden.content['application/json'].schema
+    update:
+      $ref: '#/components/schemas/ForbiddenError'
+  - target: $.components.responses.NotFound.content['application/json'].schema.oneOf
+    remove: true
+  - target: $.components.responses.NotFound.content['application/json'].schema
+    update:
+      oneOf:
+        - $ref: '#/components/schemas/NotFoundError'
+        - $ref: '#/components/schemas/RouteNotFoundError'
+  - target: $.components.responses.Conflict.content['application/json'].schema
+    update:
+      $ref: '#/components/schemas/ConflictError'
+  - target: $.components.responses.RateLimited.content['application/json'].schema
+    update:
+      $ref: '#/components/schemas/RateLimitedError'
+  - target: $.components.responses.Internal.content['application/json'].schema
+    update:
+      $ref: '#/components/schemas/InternalError'
+  - target: $.components.responses.BuildTimeout.content['application/json'].schema
+    update:
+      $ref: '#/components/schemas/BuildTimeoutError'

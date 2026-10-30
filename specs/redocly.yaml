@@ -3,5 +3,7 @@ extends:
   - recommended
 
 rules:
-  # CodePen's docs publish no license for the API, and the spec states only what the docs say.
+  # CodePen's docs publish no license for the API, and upstream's spec states none.
   info-license: off
+  # Upstream describes most tags only through their operations.
+  tag-description: off
