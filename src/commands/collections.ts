@@ -105,6 +105,13 @@ export function registerCollections(program: Command, ctx: CommandContext): void
       );
     });
 
+  collections
+    .command('restore <id>')
+    .description('Take a Collection out of the trash (see `trash list` for its id)')
+    .action(async (id: string) => {
+      printCollection(ctx, await ctx.client().restoreCollection(id));
+    });
+
   addPagingOptions(
     collections.command('pens <id>').description('List the Pens in a Collection'),
   ).action(async (id: string, opts: PagingOptions) => {

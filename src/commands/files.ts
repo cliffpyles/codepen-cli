@@ -2,11 +2,19 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 import type { Command } from 'commander';
 import type { CommandContext } from './context.js';
-import { addWriteOptions, finishBuild, toWriteOptions, type WriteFlags } from './shared.js';
+import {
+  addFileWriteOptions,
+  addLabeledWriteOptions,
+  finishBuild,
+  toFileWriteOptions,
+  toLabeledWriteOptions,
+  type FileWriteFlags,
+  type LabeledWriteFlags,
+} from './shared.js';
 import { isBinaryInput, normalizePenPath, type FileInput } from '../lib/client.js';
-import { ConfigError } from '../lib/errors.js';
+import { CodePenApiError, ConfigError } from '../lib/errors.js';
 import { formatJson, formatTable } from '../lib/output.js';
-import type { FileChange, PenFile, WriteResult } from '../types.js';
+import type { FileChange, FileEdit, PenFile, WriteResult } from '../types.js';
 
 export const fileColumns = [
   { header: 'PATH', value: (f: PenFile) => f.path },
@@ -98,6 +106,55 @@ export function parseChanges(json: string, source: string): FileChange[] {
   });
 }
 
+/** Parse file edits from JSON; accepts a bare array or {edits: [...]}. */
+export function parseEdits(json: string, source: string): FileEdit[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(json);
+  } catch {
+    throw new ConfigError(`${source} is not valid JSON.`);
+  }
+  const list = Array.isArray(parsed)
+    ? parsed
+    : typeof parsed === 'object' &&
+        parsed !== null &&
+        Array.isArray((parsed as { edits?: unknown }).edits)
+      ? (parsed as { edits: unknown[] }).edits
+      : undefined;
+  if (!list)
+    throw new ConfigError(
+      `${source} must be a JSON array of edits or an object with an "edits" array.`,
+    );
+  return list.map((entry, i) => {
+    if (typeof entry !== 'object' || entry === null)
+      throw new ConfigError(`${source}: edit ${i} is not an object.`);
+    const e = entry as Record<string, unknown>;
+    if ((typeof e.path === 'string') === (typeof e.id === 'string')) {
+      throw new ConfigError(`${source}: edit ${i} needs exactly one of "path" and "id".`);
+    }
+    if (typeof e.old !== 'string' || e.old === '' || typeof e.new !== 'string') {
+      throw new ConfigError(`${source}: edit ${i} needs a non-empty "old" and a "new".`);
+    }
+    const edit: FileEdit = { old: e.old, new: e.new };
+    if (typeof e.path === 'string') edit.path = e.path;
+    if (typeof e.id === 'string') edit.id = e.id;
+    if (e.replace_all === true) edit.replace_all = true;
+    return edit;
+  });
+}
+
+/** One line per hunk that could not be applied, from the error's `details.misses`. */
+export function describeMisses(details: Record<string, unknown> | undefined): string[] {
+  const misses = details?.misses;
+  if (!Array.isArray(misses)) return [];
+  return misses.map((miss: unknown) => {
+    const m = (typeof miss === 'object' && miss !== null ? miss : {}) as Record<string, unknown>;
+    const { index, path, reason, ...hints } = m;
+    const extra = Object.keys(hints).length ? ` ${JSON.stringify(hints)}` : '';
+    return `  edit ${String(index)} (${String(path)}): ${String(reason)}${extra}`;
+  });
+}
+
 /**
  * Binary content is served from the saved version's preview host, which the API key
  * can reach. The file's own `url` needs a browser session for non-Public Pens.
@@ -120,14 +177,23 @@ async function reportWrite(
   follow: boolean,
   label: string,
 ): Promise<void> {
+  const dryRun = result.version.saved === false;
   const finalBuild = await finishBuild(ctx, result.build, follow);
   const build = finalBuild ?? result.build;
   if (ctx.format() === 'json') {
     ctx.out(formatJson({ ...result, build }));
   } else {
-    ctx.out(`${label} Version ${result.version.id}.`);
+    ctx.out(
+      dryRun
+        ? `Dry run, nothing saved. ${label} Unsaved version ${result.version.id}.`
+        : `${label} Version ${result.version.id}.`,
+    );
   }
-  if (build.status === 'Failed') throw new ConfigError('Files saved, but the build failed.');
+  if (build.status === 'Failed') {
+    throw new ConfigError(
+      dryRun ? 'Dry run: the build failed.' : 'Files saved, but the build failed.',
+    );
+  }
 }
 
 export function registerFiles(pens: Command, ctx: CommandContext): void {
@@ -177,7 +243,7 @@ export function registerFiles(pens: Command, ctx: CommandContext): void {
       }
     });
 
-  addWriteOptions(
+  addFileWriteOptions(
     files
       .command('put <pen> <path>')
       .description('Write one file from a local file, --content, or stdin; builds the Pen')
@@ -199,14 +265,19 @@ Examples:
       async (
         penId: string,
         path: string,
-        opts: WriteFlags & { from?: string; content?: string; stdin?: boolean; binary?: boolean },
+        opts: FileWriteFlags & {
+          from?: string;
+          content?: string;
+          stdin?: boolean;
+          binary?: boolean;
+        },
       ) => {
         const sources = [opts.from, opts.content, opts.stdin].filter(
           (v) => v !== undefined && v !== false,
         ).length;
         if (sources > 1) throw new ConfigError('Use only one of --from, --content, --stdin.');
         const client = ctx.client();
-        const write = toWriteOptions(opts);
+        const write = toFileWriteOptions(opts);
         let result: WriteResult;
         if (opts.content !== undefined) {
           result = await client.putFile(penId, path, opts.content, write);
@@ -224,7 +295,7 @@ Examples:
       },
     );
 
-  addWriteOptions(
+  addLabeledWriteOptions(
     files
       .command('apply <pen> [changes]')
       .description('Apply several changes as one version from a JSON file ("-" for stdin)')
@@ -254,7 +325,7 @@ Examples:
       async (
         penId: string,
         changesPath: string | undefined,
-        opts: WriteFlags & { file?: string[] },
+        opts: LabeledWriteFlags & { file?: string[] },
       ) => {
         if (!changesPath && !opts.file?.length)
           throw new ConfigError('Give a changes file ("-" for stdin) or at least one --file.');
@@ -271,20 +342,96 @@ Examples:
         for (const f of local) if (!isBinaryInput(f)) changes.push(f);
         const total = changes.length + uploads.length;
         if (total === 0) throw new ConfigError('No changes to apply.');
-        const result = await ctx.client().putFiles(penId, changes, toWriteOptions(opts), uploads);
+        const result = await ctx
+          .client()
+          .putFiles(penId, changes, toLabeledWriteOptions(opts), uploads);
         await reportWrite(ctx, result, opts.follow !== false, `Applied ${total} change(s).`);
       },
     );
 
-  addWriteOptions(
+  addLabeledWriteOptions(
+    files
+      .command('edit <pen> [edits]')
+      .description(
+        'Replace text in files without resending them, as one version, from flags or JSON ("-" for stdin)',
+      )
+      .option('--path <path>', 'The file to edit')
+      .option('--old <text>', 'Text that appears in the file exactly once')
+      .option('--new <text>', 'The replacement; an empty string deletes the matched text')
+      .option('--replace-all', 'Replace every occurrence of --old'),
+  )
+    .addHelpText(
+      'after',
+      `
+The JSON is an array (or {"edits": [...]}) of hunks, applied in order:
+  { "path": "index.html", "old": "Hello", "new": "Hi" }       by path
+  { "id": "<file id>", "old": "Hello", "new": "Hi" }           by id
+  { "path": "a.css", "old": "red", "new": "blue", "replace_all": true }
+
+Nothing is applied by halves: if one hunk cannot be applied, none are, and every
+miss is listed.
+
+Examples:
+  $ codepen pens files edit abc123 --path index.html --old Hello --new Hi
+  $ codepen pens files edit abc123 edits.json --dry-run`,
+    )
+    .action(
+      async (
+        penId: string,
+        editsPath: string | undefined,
+        opts: LabeledWriteFlags & {
+          path?: string;
+          old?: string;
+          new?: string;
+          replaceAll?: boolean;
+        },
+      ) => {
+        const inline = [opts.path, opts.old, opts.new].some((v) => v !== undefined);
+        if (editsPath && inline) throw new ConfigError('Use an edits file or flags, not both.');
+        let edits: FileEdit[];
+        if (editsPath) {
+          const json =
+            editsPath === '-'
+              ? await ctx.readStdin()
+              : new TextDecoder().decode(await readLocal(editsPath));
+          edits = parseEdits(json, editsPath === '-' ? 'stdin' : editsPath);
+        } else {
+          if (!opts.path || !opts.old || opts.new === undefined)
+            throw new ConfigError(
+              'Give an edits file ("-" for stdin), or --path, --old and --new.',
+            );
+          edits = [
+            {
+              path: opts.path,
+              old: opts.old,
+              new: opts.new,
+              ...(opts.replaceAll ? { replace_all: true } : {}),
+            },
+          ];
+        }
+        if (edits.length === 0) throw new ConfigError('No edits to apply.');
+        let result: WriteResult;
+        try {
+          result = await ctx.client().editFiles(penId, edits, toLabeledWriteOptions(opts));
+        } catch (error) {
+          if (error instanceof CodePenApiError) {
+            for (const line of describeMisses(error.details)) ctx.err(line);
+          }
+          throw error;
+        }
+        await reportWrite(ctx, result, opts.follow !== false, `Applied ${edits.length} edit(s).`);
+      },
+    );
+
+  addFileWriteOptions(
     files
       .command('delete <pen> <path>')
       .description('Delete a file, or every file under a directory; builds the Pen')
       .option('-y, --yes', 'Skip the confirmation prompt'),
-  ).action(async (penId: string, path: string, opts: WriteFlags & { yes?: boolean }) => {
+  ).action(async (penId: string, path: string, opts: FileWriteFlags & { yes?: boolean }) => {
     const normalized = normalizePenPath(path);
     await ctx.confirmOrAbort(`Delete ${normalized} from Pen ${penId}?`, opts.yes);
-    const result = await ctx.client().deleteFile(penId, path, toWriteOptions(opts));
+    const result = await ctx.client().deleteFile(penId, path, toFileWriteOptions(opts));
     await reportWrite(ctx, result, opts.follow !== false, `Deleted ${normalized}.`);
   });
 }

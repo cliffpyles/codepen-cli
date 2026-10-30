@@ -4,6 +4,7 @@ import { registerAuth } from './commands/auth.js';
 import { registerCollections } from './commands/collections.js';
 import { createContext, type ContextIO, type GlobalOptions } from './commands/context.js';
 import { registerPens } from './commands/pens.js';
+import { registerTrash } from './commands/trash.js';
 import { exitCodeFor } from './lib/errors.js';
 import { VERSION } from './version.js';
 
@@ -26,6 +27,7 @@ export function createProgram(io: ProgramIO): Command {
   registerPens(program, ctx);
   registerCollections(program, ctx);
   registerAssets(program, ctx);
+  registerTrash(program, ctx);
   return program;
 }
 

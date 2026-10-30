@@ -10,6 +10,8 @@ export const ROLE_VALUES = ['Editor', 'Viewer'] as const;
 export const LIST_SORTS = ['created', 'updated'] as const;
 /** Pens and Collections can also be ranked by popularity. */
 export const RANKED_SORTS = [...LIST_SORTS, 'popularity'] as const;
+/** Pens can also be ordered by title. */
+export const PEN_SORTS = [...RANKED_SORTS, 'title'] as const;
 
 export interface PagingOptions {
   page: number;
@@ -22,6 +24,14 @@ export interface WriteFlags {
   wait?: number;
   expectedVersion?: string;
   follow?: boolean;
+}
+
+export interface FileWriteFlags extends WriteFlags {
+  dryRun?: boolean;
+}
+
+export interface LabeledWriteFlags extends FileWriteFlags {
+  label?: string;
 }
 
 export const penColumns = [
@@ -85,12 +95,36 @@ export function addWriteOptions(cmd: Command): Command {
     .option('--no-follow', 'Do not poll an unfinished build before returning');
 }
 
+/** Write options for commands that write a Pen's files, which can be tried without saving. */
+export function addFileWriteOptions(cmd: Command): Command {
+  return addWriteOptions(cmd).option(
+    '--dry-run',
+    'Build the proposed files without saving them; the head does not move',
+  );
+}
+
+/** File writes that make one version can also name it. */
+export function addLabeledWriteOptions(cmd: Command): Command {
+  return addFileWriteOptions(cmd).option(
+    '--label <name>',
+    'Name the saved version (at most 80 characters)',
+  );
+}
+
 export function toListOptions(opts: PagingOptions) {
   return { page: opts.page, per_page: opts.perPage, sort: opts.sort, direction: opts.direction };
 }
 
 export function toWriteOptions(opts: WriteFlags) {
   return { wait: opts.wait, expected_version_id: opts.expectedVersion };
+}
+
+export function toFileWriteOptions(opts: FileWriteFlags) {
+  return { ...toWriteOptions(opts), dry_run: opts.dryRun };
+}
+
+export function toLabeledWriteOptions(opts: LabeledWriteFlags) {
+  return { ...toFileWriteOptions(opts), label: opts.label };
 }
 
 export function parsePositiveInt(value: string): number {
@@ -106,6 +140,16 @@ export function parseWait(value: string): number {
     throw new ConfigError(`--wait must be a whole number of seconds from 0 to 75, got "${value}".`);
   }
   return n;
+}
+
+/** Accepts anything Date can read, such as `2026-10-01`, and sends the API's RFC 3339 form. */
+export function parseTimestamp(flag: string): (value: string) => string {
+  return (value) => {
+    const time = Date.parse(value);
+    if (Number.isNaN(time))
+      throw new ConfigError(`${flag} must be a date or time, got "${value}".`);
+    return new Date(time).toISOString();
+  };
 }
 
 /** Case-insensitive enum parser that returns the canonical spelling. */
@@ -139,7 +183,8 @@ export function printPage<T>(
     return;
   }
   ctx.out(formatTable(page.items, columns, emptyMessage));
-  if (page.links.next !== undefined) ctx.err(`More results: --page ${page.links.next}`);
+  if (page.next_cursor !== undefined) ctx.err(`More results: --cursor ${page.next_cursor}`);
+  else if (page.links.next !== undefined) ctx.err(`More results: --page ${page.links.next}`);
 }
 
 function describeDiagnostic(d: Diagnostic): string {

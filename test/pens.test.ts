@@ -78,7 +78,7 @@ describe('pens list', () => {
       ['--deployed', 'perhaps'],
       ['--page', '0'],
       ['--per-page', '1.5'],
-      ['--sort', 'title'],
+      ['--sort', 'nope'],
     ]) {
       const h = cliHarness(configFile, { fetch: fakeFetch() });
       expect(await run(['pens', 'list', ...args], h.io)).toBe(78);

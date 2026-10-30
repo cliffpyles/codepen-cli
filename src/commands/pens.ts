@@ -1,6 +1,7 @@
 import type { Command } from 'commander';
 import type { CommandContext } from './context.js';
 import { registerCollaborators } from './collaborators.js';
+import { registerDomains } from './domains.js';
 import { readLocalFiles, registerFiles } from './files.js';
 import { registerVersions } from './versions.js';
 import {
@@ -11,11 +12,12 @@ import {
   oneOf,
   parseBoolean,
   parseTags,
+  parseTimestamp,
+  PEN_SORTS,
   penColumns,
   penRecord,
   penRecordKeys,
   printPage,
-  RANKED_SORTS,
   toListOptions,
   toWriteOptions,
   type PagingOptions,
@@ -95,8 +97,34 @@ export function registerPens(program: Command, ctx: CommandContext): void {
         'All, Forked or NotForked',
         oneOf(['All', 'Forked', 'NotForked'], '--forks'),
       )
-      .option('--editor <editor>', 'Classic or V2', oneOf(['Classic', 'V2'], '--editor')),
-    RANKED_SORTS,
+      .option('--editor <editor>', 'Classic or V2', oneOf(['Classic', 'V2'], '--editor'))
+      .option(
+        '--created-since <time>',
+        'Pens created since this date or time',
+        parseTimestamp('--created-since'),
+      )
+      .option(
+        '--created-until <time>',
+        'Pens created until this date or time',
+        parseTimestamp('--created-until'),
+      )
+      .option(
+        '--updated-since <time>',
+        'Pens updated since this date or time',
+        parseTimestamp('--updated-since'),
+      )
+      .option(
+        '--updated-until <time>',
+        'Pens updated until this date or time',
+        parseTimestamp('--updated-until'),
+      )
+      .option('--untitled <bool>', 'Only Pens with no title (true)', parseBoolean('--untitled'))
+      .option(
+        '--block <name>',
+        'Pens whose saved head uses this Block, such as sass-1. Scans at most 500 Pens per request and pages with --cursor, so a page can be short or empty',
+      )
+      .option('--cursor <cursor>', 'With --block: the cursor from the previous page'),
+    PEN_SORTS,
   ).action(
     async (
       opts: PagingOptions & {
@@ -107,8 +135,16 @@ export function registerPens(program: Command, ctx: CommandContext): void {
         template?: boolean;
         forks?: string;
         editor?: string;
+        createdSince?: string;
+        createdUntil?: string;
+        updatedSince?: string;
+        updatedUntil?: string;
+        untitled?: boolean;
+        block?: string;
+        cursor?: string;
       },
     ) => {
+      if (opts.cursor && !opts.block) throw new ConfigError('--cursor needs --block.');
       const page = await ctx.client().listPens({
         access: opts.access,
         tags: parseTags(opts.tag),
@@ -117,7 +153,16 @@ export function registerPens(program: Command, ctx: CommandContext): void {
         template: opts.template,
         forks: opts.forks,
         editor: opts.editor,
+        created_since: opts.createdSince,
+        created_until: opts.createdUntil,
+        updated_since: opts.updatedSince,
+        updated_until: opts.updatedUntil,
+        untitled: opts.untitled,
+        block: opts.block,
+        cursor: opts.cursor,
         ...toListOptions(opts),
+        // A --block list pages by cursor, not by page number.
+        page: opts.block ? undefined : opts.page,
       });
       printPage(ctx, page, penColumns, 'No Pens found.');
     },
@@ -176,7 +221,7 @@ Examples:
 
   pens
     .command('delete <id>')
-    .description('Move a Pen to the trash (restorable on codepen.io for 3 days)')
+    .description('Move a Pen to the trash (restorable with `pens restore` for 3 days)')
     .option('-y, --yes', 'Skip the confirmation prompt')
     .action(async (id: string, opts: { yes?: boolean }) => {
       await ctx.confirmOrAbort(`Move Pen ${id} to the trash?`, opts.yes);
@@ -186,6 +231,13 @@ Examples:
           ? formatJson({ id, deleted: true })
           : `Moved Pen ${id} to the trash.`,
       );
+    });
+
+  pens
+    .command('restore <id>')
+    .description('Take a Pen out of the trash (see `trash list` for its id)')
+    .action(async (id: string) => {
+      printPen(ctx, await ctx.client().restorePen(id));
     });
 
   addWriteOptions(
@@ -238,4 +290,5 @@ Examples:
   registerFiles(pens, ctx);
   registerVersions(pens, ctx);
   registerCollaborators(pens, ctx);
+  registerDomains(pens, ctx);
 }

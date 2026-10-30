@@ -73,13 +73,14 @@ export function registerVersions(pens: Command, ctx: CommandContext): void {
   versions
     .command('restore <pen> <version>')
     .description('Copy an older version to the head (does not trigger a build)')
+    .option('--label <name>', 'Name the new saved version (at most 80 characters)')
     .option('-y, --yes', 'Skip the confirmation prompt')
-    .action(async (penId: string, versionId: string, opts: { yes?: boolean }) => {
+    .action(async (penId: string, versionId: string, opts: { label?: string; yes?: boolean }) => {
       await ctx.confirmOrAbort(
         `Restore version ${versionId} as the head of Pen ${penId}?`,
         opts.yes,
       );
-      const pen = await ctx.client().restoreVersion(penId, versionId);
+      const pen = await ctx.client().restoreVersion(penId, versionId, opts.label);
       ctx.out(
         ctx.format() === 'json'
           ? formatJson(pen)
