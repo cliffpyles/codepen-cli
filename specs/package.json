@@ -4,6 +4,8 @@
   "description": "Checks for the OpenAPI description of CodePen's REST API v2. Kept apart from the CLI so it cannot block CLI development or releases.",
   "type": "module",
   "scripts": {
+    "pull": "tsx scripts/pull.ts",
+    "pull:check": "tsx scripts/pull.ts --check",
     "generate": "tsx scripts/generate.ts",
     "generate:check": "tsx scripts/generate.ts --check",
     "lint": "redocly lint codepen-api-v2.yaml",
