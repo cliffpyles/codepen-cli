@@ -381,7 +381,7 @@ describe('pens settings', () => {
     expect(await run(['pens', 'settings', 'abc123'], h.io)).toBe(78);
     expect(h.stderr()).toContain('Nothing to update');
     const h2 = cliHarness(configFile, { fetch: fakeFetch() });
-    expect(await run(['pens', 'settings', 'abc123', '--tab-size', '9'], h2.io)).toBe(78);
-    expect(h2.stderr()).toContain('--tab-size must be');
+    expect(await run(['pens', 'settings', 'abc123', '--tab-size', '7'], h2.io)).toBe(78);
+    expect(h2.stderr()).toContain('--tab-size must be 1–6');
   });
 });

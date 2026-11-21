@@ -258,8 +258,8 @@ Examples:
     .option('--indent-with <style>', 'spaces or tabs', oneOf(['spaces', 'tabs'], '--indent-with'))
     .option('--tab-size <n>', 'Tab size', (v: string) => {
       const n = Number(v);
-      if (!Number.isInteger(n) || n < 1 || n > 8)
-        throw new ConfigError(`--tab-size must be 1–8, got "${v}".`);
+      if (!Number.isInteger(n) || n < 1 || n > 6)
+        throw new ConfigError(`--tab-size must be 1–6, got "${v}".`);
       return n;
     })
     .action(
