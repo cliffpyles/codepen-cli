@@ -112,7 +112,7 @@ To check that the live API still matches the spec, run the [contract tests](#con
 
 It is built, not written by hand. CodePen publishes an [official spec](https://api.codepen.io/docs); we save unmodified copies of its YAML and JSON in `specs/upstream/` and keep our additions in `specs/overlays/`, so upstream stays the source of truth and every difference from it is in one reviewable place.
 
-For now the spec is optional. Nothing in `npm run check`, CI or the release process depends on it, and a CLI change never has to wait for it. That will change once the CLI's types are generated from it.
+The spec gates releases, not merging. A pull request never has to wait for it, and the root `npm run check` and the CI workflow skip it, but nothing is released or published to npm until `npm run spec:gate` passes (see [Release gate](#release-gate)).
 
 ### Checking the spec
 
@@ -175,7 +175,7 @@ npm --prefix specs run generate
 
 The CLI does not use these types yet; `src/types.ts` stays hand-written until they are complete and stable. They live outside `src/` until then and will move there when they replace it. The type parity tests show how close that is: the generated types are ready to replace the hand-written ones when every difference they list is gone or is one we choose to keep.
 
-The [Spec workflow](.github/workflows/spec.yml) runs `spec:check` on pushes and pull requests that touch `specs/`. It is separate from CI on purpose and must not be made a required check while the spec is optional.
+The [Spec workflow](.github/workflows/spec.yml) runs `spec:check` on pushes and pull requests that touch `specs/`, so a problem shows up before it reaches a release. It is not a required check for merging.
 
 ### Updating from the official spec
 
@@ -192,7 +192,21 @@ npm run spec:contract
 
 Each pull that saves a change adds a dated entry to [`specs/upstream/CHANGELOG.md`](specs/upstream/CHANGELOG.md): operations, parameters, responses, schemas, fields, required fields and enum values added or removed, then every other difference by location. CodePen publishes no changelog of its own, so this is the only history of the spec, and changes made between two pulls show up as one entry. Commit the changelog with the new copies.
 
+The newest entry records a fingerprint of the copies it describes (`<!-- copies: … -->`), and `spec:check` fails if it no longer matches the files in `specs/upstream/`. Never edit either by hand: run `spec:pull`, or restore `upstream/` with git.
+
 Review the changelog and the diff of the built spec. If `generate` fails, an overlay's target has moved or gone: change the overlay to match.
+
+### Release gate
+
+`npm run spec:gate` is the compliance check for a release. It passes only if:
+
+- **Our spec complies.** `spec:check` passes in full: the built spec matches `upstream/` and `overlays/`, narrows upstream without contradicting it, validates, and covers every operation the client calls.
+- **Changes are communicated.** The newest entry of `specs/upstream/CHANGELOG.md` describes the saved copies.
+- **Our copy is the latest.** CodePen's published YAML and JSON say the same as `specs/upstream/`. This step needs the network.
+
+It runs in two places, so neither a release nor a publish can skip it. In `.github/workflows/release.yml`, the `spec-gate` job runs before release-please, so no release is cut and nothing is tagged while it fails. And `prepublishOnly` runs it again before `npm publish`, against the tagged commit, which also covers a publish from your own machine.
+
+When CodePen changes its spec, releases stop until someone brings the change in: `npm run spec:pull`, `npm --prefix specs run generate`, review, commit. CI never pulls or commits for you. The [contract tests](#contract-tests) are not part of the gate, because they need an API key; run them by hand when you pull.
 
 ### Changing the spec
 
@@ -230,7 +244,9 @@ Releases are automated from Conventional Commits.
 
 1. Merge work into `main`. [release-please](https://github.com/googleapis/release-please) keeps a "chore(main): release x.y.z" pull request open that bumps `package.json` and `package-lock.json` and updates `CHANGELOG.md` from the commit history. `feat` bumps the minor version, `fix` the patch, and a `!` or `BREAKING CHANGE:` footer the major.
 2. Merge that pull request. release-please tags the commit (`vX.Y.Z`) and creates a GitHub release.
-3. The `publish` job in `.github/workflows/release.yml` checks out the tag and runs `npm publish --provenance`. `prepublishOnly` cleans, runs the full check and builds first, so a red check blocks the publish.
+3. The `publish` job in `.github/workflows/release.yml` checks out the tag and runs `npm publish --provenance`. `prepublishOnly` cleans, runs the full check, runs the [spec gate](#release-gate) and builds first, so a red check blocks the publish.
+
+Every push to `main` runs the `spec-gate` job before release-please, so a release pull request is only opened or updated, and merging it only cuts a release, while the spec gate passes.
 
 The CLI reads its version from `package.json` at runtime (`src/version.ts`), so there is nothing else to bump by hand.
 
