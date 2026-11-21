@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.1](https://github.com/cliffpyles/codepen-cli/compare/v2.2.0...v2.2.1) (2026-11-21)
+
+
+### Bug Fixes
+
+* **cli:** say when to retry after a rate limit ([bb4407b](https://github.com/cliffpyles/codepen-cli/commit/bb4407b0708ca77d8b109d5e12b54df90027f831))
+* **pens:** limit --tab-size to the 1–6 the API accepts ([5a43d9e](https://github.com/cliffpyles/codepen-cli/commit/5a43d9e38cc6b187c59c52532aeace794b279e22))
+
 ## [2.2.0](https://github.com/cliffpyles/codepen-cli/compare/v2.1.0...v2.2.0) (2026-11-21)
 
 
