@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.2.0](https://github.com/cliffpyles/codepen-cli/compare/v2.1.0...v2.2.0) (2026-11-21)
+
+
+### Features
+
+* **cli:** add file edit, domain, trash and restore commands ([7774aa9](https://github.com/cliffpyles/codepen-cli/commit/7774aa982e7f76598abe94878e9c06cf8d304f77))
+* **client:** add file edits, custom domains, trash and restore ([ad4438d](https://github.com/cliffpyles/codepen-cli/commit/ad4438d7ee64d1bb00af5c93c0f72e5b70477ad7))
+* **client:** download files from their signed download_url ([96ad47a](https://github.com/cliffpyles/codepen-cli/commit/96ad47a5b057c5667a2d568751a43c5cfa30b0eb))
+* **cli:** save binary files from download_url in files get -o ([99e6613](https://github.com/cliffpyles/codepen-cli/commit/99e6613b9d4280551af3bebe08d91b43110f8078))
+
 ## [2.1.0](https://github.com/cliffpyles/codepen-cli/compare/v2.0.0...v2.1.0) (2026-10-19)
 
 
