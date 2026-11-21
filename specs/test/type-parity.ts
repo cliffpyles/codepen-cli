@@ -129,7 +129,8 @@ export type PenFileParity = Assert<
     {
       conflicting: never;
       looser: 'bytes' | 'content' | 'content_hash' | 'content_type' | 'is_binary' | 'name' | 'url';
-      missing: never;
+      // Added upstream on 2026-11-21; the CLI does not read it yet.
+      missing: 'download_url';
       handOnly: never;
     }
   >

@@ -299,3 +299,9 @@ actions:
   - target: $.components.responses.BuildTimeout.content['application/json'].schema
     update:
       $ref: '#/components/schemas/BuildTimeoutError'
+  - target: $.paths['/v2/pens/{id}/download/{path}'].get.responses['403'].content['application/json'].schema
+    update:
+      $ref: '#/components/schemas/ForbiddenError'
+  - target: $.paths['/v2/pens/{id}/download/{path}'].get.responses['404'].content['application/json'].schema
+    update:
+      $ref: '#/components/schemas/NotFoundError'

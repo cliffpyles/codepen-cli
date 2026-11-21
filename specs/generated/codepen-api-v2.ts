@@ -211,6 +211,47 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/v2/pens/{id}/download/{path}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /**
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
+         * @example 01a08738-73f0-7847-b6a8-5789d289c158
+         */
+        id: components['parameters']['penId'];
+        /**
+         * @description The file's full path in the Pen, without the leading `/`. Its
+         *     slashes may be sent as they are (`src/app.js`) or encoded
+         *     (`src%2Fapp.js`, as OpenAPI clients encode a path parameter).
+         * @example src/app.js
+         */
+        path: components['parameters']['filePath'];
+      };
+      cookie?: never;
+    };
+    /**
+     * Download a file through its signed URL
+     * @description The route a file's `download_url` points at. The URL names one file's
+     *     exact bytes (the Pen, the content `hash` and the path) and carries an
+     *     expiry and a signature over all of it, so anyone holding it fetches
+     *     the file for an hour with no API key, session or Referer. Read the
+     *     file through the API for a URL; the parameters are not meant to be
+     *     built by hand. The bytes are served as an attachment with the file's
+     *     `content_type`. A URL for a Pen that has since been moved to the
+     *     trash answers `404`.
+     */
+    get: operations['penFileDownload'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/v2/pens/{id}/versions': {
     parameters: {
       query?: never;
@@ -940,9 +981,24 @@ export interface components {
       content: string | null;
       /**
        * Format: uri
-       * @description Where the file is served raw; null for the files of a Pen made in the classic editor.
+       * @description Where the file is served raw on the Pen's content domain. It
+       *     follows the Pen's own access rules: a Private, Protected or
+       *     Collaborators Pen needs a browser session and a Pen owned by a
+       *     Free account needs a CodePen Referer, neither of which an API
+       *     client has, so read files through `content` or `download_url`.
+       *     Null for the files of a Pen made in the classic editor.
        */
       url: string | null;
+      /**
+       * Format: uri
+       * @description The file's exact bytes for anyone holding the URL, on the API host
+       *     (`GET /v2/pens/{id}/download/{path}`), for one hour from this
+       *     response: no API key, session or Referer needed. Served as an
+       *     attachment with the file's `content_type`. A new URL comes with
+       *     every read; an expired one answers `403`. Null for the files of a
+       *     Pen made in the classic editor.
+       */
+      download_url: string | null;
     };
     Version: {
       id: string;
@@ -1162,6 +1218,7 @@ export interface components {
       /** @default Untitled */
       title: string;
       description?: string;
+      /** @description Optional; up to 5 tags, each 2 to 50 characters of letters, digits and dashes (stored lowercase, spaces as dashes). */
       tags?: string[];
       access?: components['schemas']['PenAccess'];
       /** @description Required with `Protected` access, and refused with any other. */
@@ -1174,7 +1231,7 @@ export interface components {
     PenUpdateRequest: {
       title?: string;
       description?: string;
-      /** @description Replaces the whole list. */
+      /** @description Replaces the whole list; up to 5 tags, each 2 to 50 characters of letters, digits and dashes. An empty list clears them. */
       tags?: string[];
       template?: boolean;
       access?: components['schemas']['PenAccess'];
@@ -1187,6 +1244,7 @@ export interface components {
     PenForkRequest: {
       title?: string;
       description?: string;
+      /** @description Up to 5 tags, each 2 to 50 characters of letters, digits and dashes; defaults to the original's. */
       tags?: string[];
       access?: components['schemas']['PenAccess'];
       password?: string;
@@ -1631,10 +1689,10 @@ export interface components {
       content: {
         /**
          * @example {
-         *       "message": "daily limit reached: the Free plan allows 3 Pens a day through the API. Upgrade to PRO for 50 a day at https://codepen.io/pricing",
+         *       "message": "daily limit reached: the Free plan allows 5 Pens a day through the API. Upgrade to PRO for 150 a day at https://codepen.io/pricing",
          *       "code": "RATE_LIMITED",
          *       "retry_after_seconds": 51840,
-         *       "limit": 3,
+         *       "limit": 5,
          *       "reset_at": "2026-10-28T09:00:00Z"
          *     }
          */
@@ -2273,6 +2331,75 @@ export interface operations {
       429: components['responses']['RateLimited'];
       500: components['responses']['Internal'];
       504: components['responses']['BuildTimeout'];
+    };
+  };
+  penFileDownload: {
+    parameters: {
+      query: {
+        /** @description The file's `content_hash`. */
+        hash: string;
+        /** @description When the URL stops answering, as unix seconds. */
+        expires: string;
+        /** @description The signature over the Pen, hash, path and expiry. */
+        sig: string;
+      };
+      header?: never;
+      path: {
+        /**
+         * @description The Pen's cpid or hashid, or a CodePen URL that names the Pen (editor,
+         *     pen or preview URL).
+         * @example 01a08738-73f0-7847-b6a8-5789d289c158
+         */
+        id: components['parameters']['penId'];
+        /**
+         * @description The file's full path in the Pen, without the leading `/`. Its
+         *     slashes may be sent as they are (`src/app.js`) or encoded
+         *     (`src%2Fapp.js`, as OpenAPI clients encode a path parameter).
+         * @example src/app.js
+         */
+        path: components['parameters']['filePath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The file's bytes, as an attachment. */
+      200: {
+        headers: {
+          /** @example attachment; filename="logo.png" */
+          'Content-Disposition'?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': string;
+        };
+      };
+      400: components['responses']['BadRequest'];
+      /** @description `FORBIDDEN`: the URL has expired. Read the file again for a new one. */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "message": "the download link has expired; read the file again for a new one",
+           *       "code": "FORBIDDEN"
+           *     }
+           */
+          'application/json': components['schemas']['ForbiddenError'];
+        };
+      };
+      /** @description `NOT_FOUND`: the signature does not match the Pen, hash and path, or the Pen or its owner is gone. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['NotFoundError'];
+        };
+      };
+      500: components['responses']['Internal'];
     };
   };
   penVersions: {

@@ -606,6 +606,78 @@ paths:
         '504':
           $ref: '#/components/responses/BuildTimeout'
 
+  /v2/pens/{id}/download/{path}:
+    parameters:
+      - $ref: '#/components/parameters/penId'
+      - $ref: '#/components/parameters/filePath'
+    get:
+      operationId: penFileDownload
+      tags: [Files]
+      summary: Download a file through its signed URL
+      security: []
+      description: |
+        The route a file's `download_url` points at. The URL names one file's
+        exact bytes (the Pen, the content `hash` and the path) and carries an
+        expiry and a signature over all of it, so anyone holding it fetches
+        the file for an hour with no API key, session or Referer. Read the
+        file through the API for a URL; the parameters are not meant to be
+        built by hand. The bytes are served as an attachment with the file's
+        `content_type`. A URL for a Pen that has since been moved to the
+        trash answers `404`.
+      parameters:
+        - name: hash
+          in: query
+          required: true
+          description: The file's `content_hash`.
+          schema:
+            type: string
+            pattern: '^[0-9a-f]{64}$'
+        - name: expires
+          in: query
+          required: true
+          description: When the URL stops answering, as unix seconds.
+          schema:
+            type: string
+            pattern: '^[0-9]+$'
+        - name: sig
+          in: query
+          required: true
+          description: The signature over the Pen, hash, path and expiry.
+          schema:
+            type: string
+            pattern: '^[0-9a-f]{32}$'
+      responses:
+        '200':
+          description: The file's bytes, as an attachment.
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+              example: attachment; filename="logo.png"
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          description: '`FORBIDDEN`: the URL has expired. Read the file again for a new one.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: the download link has expired; read the file again for a new one
+                code: FORBIDDEN
+        '404':
+          description: '`NOT_FOUND`: the signature does not match the Pen, hash and path, or the Pen or its owner is gone.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/Internal'
   /v2/pens/{id}/versions:
     parameters:
       - $ref: '#/components/parameters/penId'
@@ -1763,10 +1835,10 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
           example:
-            message: 'daily limit reached: the Free plan allows 3 Pens a day through the API. Upgrade to PRO for 50 a day at https://codepen.io/pricing'
+            message: 'daily limit reached: the Free plan allows 5 Pens a day through the API. Upgrade to PRO for 150 a day at https://codepen.io/pricing'
             code: RATE_LIMITED
             retry_after_seconds: 51840
-            limit: 3
+            limit: 5
             reset_at: '2026-10-28T09:00:00Z'
     Internal:
       description: '`INTERNAL`: unexpected, and reported; the message is generic.'
@@ -1958,7 +2030,8 @@ components:
           bytes,
           content_type,
           content,
-          url
+          url,
+          download_url
         ]
       properties:
         id:
@@ -1985,7 +2058,23 @@ components:
         url:
           type: [string, 'null']
           format: uri
-          description: Where the file is served raw; null for the files of a Pen made in the classic editor.
+          description: |
+            Where the file is served raw on the Pen's content domain. It
+            follows the Pen's own access rules: a Private, Protected or
+            Collaborators Pen needs a browser session and a Pen owned by a
+            Free account needs a CodePen Referer, neither of which an API
+            client has, so read files through `content` or `download_url`.
+            Null for the files of a Pen made in the classic editor.
+        download_url:
+          type: [string, 'null']
+          format: uri
+          description: |
+            The file's exact bytes for anyone holding the URL, on the API host
+            (`GET /v2/pens/{id}/download/{path}`), for one hour from this
+            response: no API key, session or Referer needed. Served as an
+            attachment with the file's `content_type`. A new URL comes with
+            every read; an expired one answers `403`. Null for the files of a
+            Pen made in the classic editor.
 
     Version:
       type: object
@@ -2432,7 +2521,9 @@ components:
         description:
           type: string
         tags:
+          description: Optional; up to 5 tags, each 2 to 50 characters of letters, digits and dashes (stored lowercase, spaces as dashes).
           type: array
+          maxItems: 5
           items:
             type: string
         access:
@@ -2459,8 +2550,9 @@ components:
         description:
           type: string
         tags:
+          description: Replaces the whole list; up to 5 tags, each 2 to 50 characters of letters, digits and dashes. An empty list clears them.
           type: array
-          description: Replaces the whole list.
+          maxItems: 5
           items:
             type: string
         template:
@@ -2482,7 +2574,9 @@ components:
         description:
           type: string
         tags:
+          description: Up to 5 tags, each 2 to 50 characters of letters, digits and dashes; defaults to the original's.
           type: array
+          maxItems: 5
           items:
             type: string
         access:
