@@ -128,9 +128,16 @@ export type PenFileParity = Assert<
     Differences<Hand.PenFile, Gen['File']>,
     {
       conflicting: never;
-      looser: 'bytes' | 'content' | 'content_hash' | 'content_type' | 'is_binary' | 'name' | 'url';
-      // Added upstream on 2026-11-21; the CLI does not read it yet.
-      missing: 'download_url';
+      looser:
+        | 'bytes'
+        | 'content'
+        | 'content_hash'
+        | 'content_type'
+        | 'download_url'
+        | 'is_binary'
+        | 'name'
+        | 'url';
+      missing: never;
       handOnly: never;
     }
   >

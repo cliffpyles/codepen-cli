@@ -173,6 +173,21 @@ function dropUndefined<T extends object>(value: T): Partial<T> {
   return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as Partial<T>;
 }
 
+async function apiError(response: Response): Promise<CodePenApiError> {
+  let parsed: unknown;
+  try {
+    parsed = await response.json();
+  } catch {
+    parsed = undefined;
+  }
+  const errBody = isErrorBody(parsed) ? parsed : undefined;
+  return new CodePenApiError(
+    response.status,
+    errBody,
+    `HTTP ${response.status} ${response.statusText}`,
+  );
+}
+
 export class CodePenClient {
   private readonly apiKey: string;
   private readonly baseUrl: string;
@@ -222,20 +237,7 @@ export class CodePenClient {
       ...(body === undefined ? {} : { body }),
     });
 
-    if (!response.ok) {
-      let parsed: unknown;
-      try {
-        parsed = await response.json();
-      } catch {
-        parsed = undefined;
-      }
-      const errBody = isErrorBody(parsed) ? parsed : undefined;
-      throw new CodePenApiError(
-        response.status,
-        errBody,
-        `HTTP ${response.status} ${response.statusText}`,
-      );
-    }
+    if (!response.ok) throw await apiError(response);
     if (response.status === 204) return { data: undefined as T, response };
     return { data: (await response.json()) as T, response };
   }
@@ -321,6 +323,19 @@ export class CodePenClient {
 
   getFile(penId: string, path: string) {
     return this.get<PenFile>(`/pens/${enc(penId)}/files${encPath(path)}`);
+  }
+
+  /**
+   * Fetch a file's bytes from its signed `download_url`. The URL carries its own signature and
+   * expiry, so the API key is not sent with it. An expired URL answers 403; read the file again.
+   */
+  async downloadFile(downloadUrl: string): Promise<Uint8Array> {
+    const response = await this.fetch(downloadUrl, {
+      method: 'GET',
+      headers: { 'User-Agent': 'codepen-cli' },
+    });
+    if (!response.ok) throw await apiError(response);
+    return new Uint8Array(await response.arrayBuffer());
   }
 
   /** Write one text file. */

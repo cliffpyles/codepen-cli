@@ -49,6 +49,8 @@ export interface PenFile {
   content_type?: string;
   content?: string | null;
   url?: string | null;
+  /** Signed, keyless URL for the file's bytes, valid for an hour. */
+  download_url?: string | null;
 }
 
 export interface Version {

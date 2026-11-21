@@ -135,6 +135,27 @@ describe('pen files', () => {
     expect(callOf(fetch, 1).url).toBe(`${V2}/pens/p1/files/src/my%20app.js`);
   });
 
+  it('downloads a file from its signed URL without sending the API key', async () => {
+    const url = `${V2}/pens/p1/download/img/logo.png?hash=${'a'.repeat(64)}&expires=1&sig=${'b'.repeat(32)}`;
+    const bytes = new Uint8Array([137, 80, 78, 71]);
+    const fetch = fakeFetch(
+      new Response(bytes, { status: 200 }),
+      jsonResponse({
+        status: 403,
+        body: { message: 'the download link has expired', code: 'FORBIDDEN' },
+      }),
+    );
+    const c = client(fetch);
+    expect(await c.downloadFile(url)).toEqual(bytes);
+    expect(callOf(fetch).url).toBe(url);
+    expect(callOf(fetch).headers).not.toHaveProperty('Authorization');
+    await expect(c.downloadFile(url)).rejects.toMatchObject({
+      status: 403,
+      code: 'FORBIDDEN',
+      message: 'the download link has expired',
+    });
+  });
+
   it('writes a text file with wait and expected version', async () => {
     const fetch = fakeFetch(jsonResponse({ body: writeResult }));
     const result = await client(fetch).putFile('p1', 'index.html', '<h1>', {

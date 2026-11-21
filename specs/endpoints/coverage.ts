@@ -13,7 +13,7 @@ export const CALLS_FILE = join(tmpdir(), 'codepen-api-v2-spec-endpoint-calls.jso
  * if one of these starts being exercised, so the list stays exact; add an entry when upstream gains
  * an operation before the client does, and remove it when the client catches up.
  */
-export const NOT_IN_CLIENT: string[] = ['GET /v2/pens/{id}/download/{path}'];
+export const NOT_IN_CLIENT: string[] = [];
 
 export interface RecordedCall {
   method: string;
