@@ -62,6 +62,7 @@ specs/                 # its own package; see API spec below
   dist/                # built docs page and Postman collection (gitignored)
   endpoints/           # endpoint coverage of the CLI's client tests
   generated/           # TypeScript types generated from the spec; do not edit
+  lib/changelog.ts     # describes how one copy of the official spec differs from the next
   lib/merge.ts         # applies the overlays, then flattens and closes the schemas
   lib/spec.ts          # loads, walks and validates the spec
   lib/postman.ts       # converts the spec to a Postman collection
@@ -69,10 +70,10 @@ specs/                 # its own package; see API spec below
   overlays/            # what we add to the official spec; edit these
   redocly.yaml         # Redocly lint settings
   scripts/generate.ts  # writes the spec and generated/, or with --check reports them stale
-  scripts/pull.ts      # saves the official spec to upstream/
+  scripts/pull.ts      # saves the official spec to upstream/ and adds to its changelog
   scripts/postman.ts   # writes the Postman collection to dist/
   test/                # offline checks, type tests and type parity tests
-  upstream/            # CodePen's official spec, as published; do not edit
+  upstream/            # CodePen's official spec as published, YAML and JSON, and CHANGELOG.md; do not edit
   vendor/              # the official OpenAPI 3.1 meta-schema, unmodified
 ```
 
@@ -109,7 +110,7 @@ To check that the live API still matches the spec, run the [contract tests](#con
 
 `specs/codepen-api-v2.yaml` describes CodePen's REST API v2 in OpenAPI 3.1: every operation, request and response, with examples. It is the reference for what the client sends and what the API answers, and it is meant for generating types, interactive docs and Postman collections, checking test coverage, and catching changes in the live API. It is not published to npm. GraphQL is out of scope.
 
-It is built, not written by hand. CodePen publishes an [official spec](https://api.codepen.io/docs); we save an unmodified copy in `specs/upstream/` and keep our additions in `specs/overlays/`, so upstream stays the source of truth and every difference from it is in one reviewable place.
+It is built, not written by hand. CodePen publishes an [official spec](https://api.codepen.io/docs); we save unmodified copies of its YAML and JSON in `specs/upstream/` and keep our additions in `specs/overlays/`, so upstream stays the source of truth and every difference from it is in one reviewable place.
 
 For now the spec is optional. Nothing in `npm run check`, CI or the release process depends on it, and a CLI change never has to wait for it. That will change once the CLI's types are generated from it.
 
@@ -187,7 +188,11 @@ npm run spec:check
 npm run spec:contract
 ```
 
-`spec:pull` fetches `https://api.codepen.io/openapi.yaml` and saves it byte for byte, only if what it says has changed (key order and formatting do not count). Review the diff of `upstream/` and of the built spec. If `generate` fails, an overlay's target has moved or gone: change the overlay to match.
+`spec:pull` fetches `https://api.codepen.io/openapi.yaml` and `openapi.json` and saves both byte for byte, only if what either says has changed (key order and formatting do not count). The build reads the YAML; the JSON is kept beside it, and the pull warns if the two say different things.
+
+Each pull that saves a change adds a dated entry to [`specs/upstream/CHANGELOG.md`](specs/upstream/CHANGELOG.md): operations, parameters, responses, schemas, fields, required fields and enum values added or removed, then every other difference by location. CodePen publishes no changelog of its own, so this is the only history of the spec, and changes made between two pulls show up as one entry. Commit the changelog with the new copies.
+
+Review the changelog and the diff of the built spec. If `generate` fails, an overlay's target has moved or gone: change the overlay to match.
 
 ### Changing the spec
 

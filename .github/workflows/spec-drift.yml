@@ -1,4 +1,4 @@
-# Fails when CodePen's published OpenAPI spec differs from the copy in specs/upstream/. CodePen does
+# Fails when CodePen's published OpenAPI spec, YAML or JSON, differs from the copies in specs/upstream/. CodePen does
 # not version it, so comparing is the only way to notice a change. A failure here means "run
 # npm run spec:pull"; it must never block merging or releasing, so do not make this a required check.
 name: Spec drift

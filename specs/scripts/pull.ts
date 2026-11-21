@@ -1,32 +1,66 @@
 /**
- * Pulls CodePen's official spec into upstream/, byte for byte, when what it says has changed. With
- * --check, writes nothing and fails if the published spec differs from the saved copy.
+ * Pulls CodePen's official spec, YAML and JSON, into upstream/ byte for byte when what either says
+ * has changed, and adds an entry to upstream/CHANGELOG.md. With --check, writes nothing and fails if
+ * a published copy differs from the saved one.
  */
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fetchUpstream, sameSpec, UPSTREAM_FILE_URL, UPSTREAM_SPEC_URL } from '../lib/upstream.js';
+import { addEntry, describeChanges } from '../lib/changelog.js';
+import {
+  CHANGELOG_URL,
+  fetchUpstream,
+  parseUpstream,
+  sameSpec,
+  UPSTREAM_FILES,
+  UPSTREAM_JSON,
+  UPSTREAM_YAML,
+} from '../lib/upstream.js';
 
-function readSaved(): string | undefined {
+function readSaved(url: URL): string | undefined {
   try {
-    return readFileSync(UPSTREAM_FILE_URL, 'utf8');
+    return readFileSync(url, 'utf8');
   } catch {
     return undefined;
   }
 }
 
-const published = await fetchUpstream();
-const saved = readSaved();
+const published = new Map(
+  await Promise.all(UPSTREAM_FILES.map(async (f) => [f, await fetchUpstream(f.url)] as const)),
+);
+const changed = UPSTREAM_FILES.filter((f) => {
+  const saved = readSaved(f.file);
+  return saved === undefined || !sameSpec(saved, published.get(f) ?? '');
+});
 
-if (saved !== undefined && sameSpec(saved, published)) {
-  console.log(`upstream/ matches ${UPSTREAM_SPEC_URL}.`);
+if (changed.length === 0) {
+  console.log('upstream/ matches the published YAML and JSON.');
 } else if (process.argv.includes('--check')) {
-  console.error(`${UPSTREAM_SPEC_URL} has changed. Run: npm run spec:pull`);
+  for (const f of changed) console.error(`${f.url} has changed.`);
+  console.error('Run: npm run spec:pull');
   process.exitCode = 1;
 } else {
-  const path = fileURLToPath(UPSTREAM_FILE_URL);
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, published);
-  console.log(`Saved ${UPSTREAM_SPEC_URL} to upstream/. Now run: npm --prefix specs run generate`);
+  const yaml = published.get(UPSTREAM_YAML) ?? '';
+  const json = published.get(UPSTREAM_JSON) ?? '';
+  const savedYaml = readSaved(UPSTREAM_YAML.file);
+  const lines =
+    savedYaml === undefined
+      ? ['- First copy saved.']
+      : describeChanges(parseUpstream(savedYaml), parseUpstream(yaml));
+  if (lines.length === 0) lines.push('- Only openapi.json changed.');
+  if (!sameSpec(yaml, json)) {
+    lines.push('- The published YAML and JSON say different things. The build reads the YAML.');
+    console.warn('Warning: the published YAML and JSON say different things.');
+  }
+  for (const f of UPSTREAM_FILES) {
+    const path = fileURLToPath(f.file);
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, published.get(f) ?? '');
+  }
+  const date = new Date().toISOString().slice(0, 10);
+  writeFileSync(CHANGELOG_URL, addEntry(readSaved(CHANGELOG_URL), date, lines));
+  console.log(`Saved both copies to upstream/ and added ${date} to upstream/CHANGELOG.md:`);
+  console.log(lines.join('\n'));
+  console.log('Now run: npm --prefix specs run generate');
 }
