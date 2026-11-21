@@ -198,6 +198,12 @@ export interface ApiErrorBody {
   field?: string;
   /** On BAD_USER_INPUT, structured detail such as the `misses` of a file edit. */
   details?: Record<string, unknown>;
+  /** On RATE_LIMITED, seconds until the counter resets. */
+  retry_after_seconds?: number;
+  /** On RATE_LIMITED, the allowance that was used up. */
+  limit?: number;
+  /** On RATE_LIMITED, when the counter resets, when known. */
+  reset_at?: string | null;
 }
 
 export type ApiErrorCode =

@@ -137,3 +137,25 @@ describe('codepen CLI', () => {
     expect(err.join('')).toContain('boom');
   });
 });
+
+describe('rate limits', () => {
+  it('says when to retry and exits 75', async () => {
+    const fetch = fakeFetch(
+      jsonResponse({
+        status: 429,
+        body: {
+          message: 'daily limit reached',
+          code: 'RATE_LIMITED',
+          retry_after_seconds: 51840,
+          limit: 5,
+          reset_at: '2026-10-28T09:00:00Z',
+        },
+      }),
+    );
+    const { err, io: handles } = io(fetch);
+    expect(await run([...base, 'pens', 'create'], handles)).toBe(75);
+    expect(err.join('')).toBe(
+      'daily limit reached\nTry again in 14h 24m (at 2026-10-28T09:00:00Z). The limit is 5.\n',
+    );
+  });
+});

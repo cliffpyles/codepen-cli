@@ -5,7 +5,7 @@ import { registerCollections } from './commands/collections.js';
 import { createContext, type ContextIO, type GlobalOptions } from './commands/context.js';
 import { registerPens } from './commands/pens.js';
 import { registerTrash } from './commands/trash.js';
-import { exitCodeFor } from './lib/errors.js';
+import { CodePenApiError, exitCodeFor, retryHint } from './lib/errors.js';
 import { VERSION } from './version.js';
 
 export type ProgramIO = ContextIO;
@@ -57,6 +57,8 @@ function isCommanderExit(error: unknown): error is { exitCode: number; code: str
 /** Node wraps network failures as "fetch failed" with the real reason in `cause`. */
 function describeError(error: unknown): string {
   if (!(error instanceof Error)) return String(error);
+  const hint = error instanceof CodePenApiError ? retryHint(error) : undefined;
+  if (hint) return `${error.message}\n${hint}`;
   const cause = error.cause;
   if (cause instanceof Error && cause.message) return `${error.message}: ${cause.message}`;
   return error.message;
