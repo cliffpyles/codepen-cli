@@ -7,7 +7,26 @@ on:
 permissions: read-all
 
 jobs:
+  # Release gate: no release is cut, and nothing reaches npm, unless our spec passes every check
+  # against the saved copy of CodePen's official spec, that copy is the latest published one, and
+  # specs/upstream/CHANGELOG.md describes it. On failure, run npm run spec:pull and commit.
+  spec-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            specs/package-lock.json
+      - run: npm ci
+      - run: npm --prefix specs ci
+      - run: npm run spec:gate
+
   release-please:
+    needs: spec-gate
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -38,8 +57,13 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            specs/package-lock.json
       # Trusted publishing (OIDC) needs npm 11.5.1 or newer; Node 24 bundles
       # npm 11.19+, so the version setup-node provides is enough.
       - run: npm ci
-      # prepublishOnly runs clean, check and build before anything is uploaded.
+      - run: npm --prefix specs ci
+      # prepublishOnly runs clean, check, the spec gate and build before anything is uploaded, so the
+      # gate runs again against the tagged commit.
       - run: npm publish --provenance --access public

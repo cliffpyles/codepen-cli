@@ -1,5 +1,5 @@
-# Checks the OpenAPI spec in specs/. Separate from CI on purpose: until the spec drives the CLI's
-# types, a failure here must never block merging or releasing, so do not make this a required check.
+# Checks the OpenAPI spec in specs/ on changes to it. Not a required check for merging; releases are
+# gated separately by the spec-gate job in release.yml, which runs these checks and more.
 name: Spec
 
 on:

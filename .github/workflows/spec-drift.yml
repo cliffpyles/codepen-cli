@@ -1,6 +1,7 @@
-# Fails when CodePen's published OpenAPI spec, YAML or JSON, differs from the copies in specs/upstream/. CodePen does
-# not version it, so comparing is the only way to notice a change. A failure here means "run
-# npm run spec:pull"; it must never block merging or releasing, so do not make this a required check.
+# Fails when CodePen's published OpenAPI spec, YAML or JSON, differs from the copies in specs/upstream/.
+# CodePen does not version it, so comparing is the only way to notice a change. This gives a weekly
+# early warning; the spec-gate job in release.yml makes the same check before every release. A
+# failure means "run npm run spec:pull and commit". It never changes the repository.
 name: Spec drift
 
 on:
