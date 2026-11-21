@@ -4,6 +4,7 @@
  * where it is, so nothing that changed goes unmentioned.
  */
 
+import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { isObject, operationName, operations } from './spec.js';
 import type { Json, JsonObject, Operation } from './spec.js';
@@ -167,9 +168,31 @@ export function describeChanges(before: JsonObject, after: JsonObject): string[]
   return lines;
 }
 
+/**
+ * Identifies the saved copies an entry describes: the SHA-256 of each file's bytes, in the order
+ * given. Written into each entry, so a check can tell whether the newest one is current.
+ */
+export function fingerprint(files: string[]): string {
+  return files.map((text) => createHash('sha256').update(text).digest('hex')).join(' ');
+}
+
+const FINGERPRINT = /^<!-- copies: ([0-9a-f ]+) -->$/m;
+
+/** The fingerprint recorded in the newest entry, if it has one. */
+export function newestFingerprint(changelog: string): string | undefined {
+  const newest = changelog.split(/^## /m)[1] ?? '';
+  return FINGERPRINT.exec(newest)?.[1];
+}
+
 /** The changelog with a new entry first, under the header. */
-export function addEntry(changelog: string | undefined, date: string, lines: string[]): string {
-  const entry = `## ${date}\n\n${lines.join('\n')}\n`;
+export function addEntry(
+  changelog: string | undefined,
+  date: string,
+  lines: string[],
+  copies?: string,
+): string {
+  const mark = copies === undefined ? '' : `<!-- copies: ${copies} -->\n\n`;
+  const entry = `## ${date}\n\n${mark}${lines.join('\n')}\n`;
   const body = (changelog ?? CHANGELOG_HEADER).replace(CHANGELOG_HEADER, '').trimStart();
   return `${CHANGELOG_HEADER}\n${entry}${body ? `\n${body}` : ''}`;
 }

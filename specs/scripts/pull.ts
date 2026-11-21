@@ -7,7 +7,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { addEntry, describeChanges } from '../lib/changelog.js';
+import { addEntry, describeChanges, fingerprint } from '../lib/changelog.js';
 import {
   CHANGELOG_URL,
   fetchUpstream,
@@ -59,7 +59,8 @@ if (changed.length === 0) {
     writeFileSync(path, published.get(f) ?? '');
   }
   const date = new Date().toISOString().slice(0, 10);
-  writeFileSync(CHANGELOG_URL, addEntry(readSaved(CHANGELOG_URL), date, lines));
+  const copies = fingerprint(UPSTREAM_FILES.map((f) => published.get(f) ?? ''));
+  writeFileSync(CHANGELOG_URL, addEntry(readSaved(CHANGELOG_URL), date, lines, copies));
   console.log(`Saved both copies to upstream/ and added ${date} to upstream/CHANGELOG.md:`);
   console.log(lines.join('\n'));
   console.log('Now run: npm --prefix specs run generate');

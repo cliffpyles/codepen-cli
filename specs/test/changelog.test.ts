@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { addEntry, CHANGELOG_HEADER, describeChanges, describePath } from '../lib/changelog.js';
+import {
+  addEntry,
+  CHANGELOG_HEADER,
+  describeChanges,
+  describePath,
+  fingerprint,
+  newestFingerprint,
+} from '../lib/changelog.js';
 import type { JsonObject } from '../lib/spec.js';
 
 const spec = (): JsonObject => ({
@@ -98,5 +105,22 @@ describe('the changelog file', () => {
     expect(second).toBe(
       `${CHANGELOG_HEADER}\n## 2026-11-21\n\n- Changed \`info.version\`\n\n## 2026-10-30\n\n- First copy saved.\n`,
     );
+  });
+});
+
+describe('fingerprints', () => {
+  it('records the copies an entry describes, and reads back only the newest', () => {
+    const copies = fingerprint(['a', 'b']);
+    expect(copies).toMatch(/^[0-9a-f]{64} [0-9a-f]{64}$/);
+    const first = addEntry(undefined, '2026-10-30', ['- First copy saved.']);
+    expect(newestFingerprint(first)).toBeUndefined();
+    const second = addEntry(first, '2026-11-21', ['- Changed `info.version`'], copies);
+    expect(second).toContain(`## 2026-11-21\n\n<!-- copies: ${copies} -->\n\n- Changed`);
+    expect(newestFingerprint(second)).toBe(copies);
+    expect(newestFingerprint(addEntry(second, '2026-12-01', ['- x']))).toBeUndefined();
+  });
+
+  it('changes when any byte of a copy does', () => {
+    expect(fingerprint(['a', 'b'])).not.toBe(fingerprint(['a', 'b ']));
   });
 });
