@@ -107,10 +107,32 @@ describe('pens files get', () => {
     expect(JSON.parse(h.stdout())).toEqual(textFile);
   });
 
-  it('downloads binaries from the saved version preview host into --output and refuses to print them', async () => {
+  it('downloads binaries from the signed download_url without the API key', async () => {
+    const bytes = new Uint8Array([137, 80, 78, 71]);
+    const downloadUrl = `${V2}/pens/p1/download/logo.png?hash=h&expires=1&sig=s`;
+    const fetch = fakeFetch(
+      jsonResponse({ body: { ...binFile, download_url: downloadUrl } }),
+      new Response(bytes, { status: 200 }),
+      jsonResponse({ body: { ...binFile, download_url: downloadUrl } }),
+      jsonResponse({ status: 403, body: { message: 'link expired', code: 'FORBIDDEN' } }),
+    );
+    const h = cliHarness(configFile, { fetch });
+    const out = join(dir, 'logo.png');
+    expect(await run(['pens', 'files', 'get', 'p1', 'logo.png', '-o', out], h.io)).toBe(0);
+    expect(fetch.mock.calls).toHaveLength(2);
+    expect(callOf(fetch, 1).url).toBe(downloadUrl);
+    expect(callOf(fetch, 1).headers).not.toHaveProperty('Authorization');
+    expect(new Uint8Array(readFileSync(out))).toEqual(bytes);
+    expect(h.stderr()).toContain('Saved 4 bytes');
+
+    expect(await run(['pens', 'files', 'get', 'p1', 'logo.png', '-o', out], h.io)).toBe(1);
+    expect(h.stderr()).toContain('link expired');
+  });
+
+  it('falls back to the saved version preview host when download_url is null, and refuses to print binaries', async () => {
     const bytes = new Uint8Array([137, 80, 78, 71]);
     const fetch = fakeFetch(
-      jsonResponse({ body: binFile }),
+      jsonResponse({ body: { ...binFile, download_url: null } }),
       jsonResponse({
         body: pen({ saved_version: { id: 'v1', preview_url: 'https://pv-v1.codepen.dev/' } }),
       }),

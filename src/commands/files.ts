@@ -156,8 +156,9 @@ export function describeMisses(details: Record<string, unknown> | undefined): st
 }
 
 /**
- * Binary content is served from the saved version's preview host, which the API key
- * can reach. The file's own `url` needs a browser session for non-Public Pens.
+ * Fallback for files without a signed `download_url`: binary content is served from the saved
+ * version's preview host, which the API key can reach. The file's own `url` needs a browser
+ * session for non-Public Pens.
  */
 export async function binaryDownloadUrl(
   ctx: CommandContext,
@@ -169,6 +170,17 @@ export async function binaryDownloadUrl(
   if (preview) return new URL(normalizePenPath(file.path).slice(1), preview).toString();
   if (file.url) return file.url;
   throw new ConfigError(`${file.path} is binary and has no download URL.`);
+}
+
+async function downloadFromPreview(
+  ctx: CommandContext,
+  penId: string,
+  file: PenFile,
+): Promise<Uint8Array> {
+  const url = await binaryDownloadUrl(ctx, penId, file);
+  const response = await ctx.client().fetch(url);
+  if (!response.ok) throw new ConfigError(`Download of ${url} failed: HTTP ${response.status}`);
+  return new Uint8Array(await response.arrayBuffer());
 }
 
 async function reportWrite(
@@ -222,11 +234,9 @@ export function registerFiles(pens: Command, ctx: CommandContext): void {
       if (file.is_binary || file.content === null || file.content === undefined) {
         if (!opts.output)
           throw new ConfigError(`${file.path} is binary; pass --output <local> to save it.`);
-        const url = await binaryDownloadUrl(ctx, penId, file);
-        const response = await ctx.client().fetch(url);
-        if (!response.ok)
-          throw new ConfigError(`Download of ${url} failed: HTTP ${response.status}`);
-        const bytes = new Uint8Array(await response.arrayBuffer());
+        const bytes = file.download_url
+          ? await ctx.client().downloadFile(file.download_url)
+          : await downloadFromPreview(ctx, penId, file);
         await writeFile(opts.output, bytes).catch((e: unknown) => {
           throw wrap(e, `Could not write ${opts.output}`);
         });
