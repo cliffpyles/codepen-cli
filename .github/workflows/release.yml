@@ -3,14 +3,42 @@ name: Release
 on:
   push:
     branches: [main]
+  # Releases a merged release pull request by hand. With skip_spec_gate it bypasses the spec gate,
+  # for a security fix or anything else that cannot wait for the spec. The reason is required and
+  # recorded in the run's summary.
+  workflow_dispatch:
+    inputs:
+      skip_spec_gate:
+        description: Skip the spec gate for this release
+        type: boolean
+        default: false
+      reason:
+        description: Why the spec gate is skipped (required when skipping)
+        type: string
+        default: ''
 
 permissions: read-all
 
 jobs:
-  # Release gate: no release is cut, and nothing reaches npm, unless our spec passes every check
-  # against the saved copy of CodePen's official spec, that copy is the latest published one, and
-  # specs/upstream/CHANGELOG.md describes it. On failure, run npm run spec:pull and commit.
+  # Keeps the release pull request up to date. Never gated: merging work is never blocked by the
+  # spec, and this neither tags nor publishes.
+  release-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          release-type: node
+          skip-github-release: true
+
+  # Release gate: nothing is tagged or reaches npm unless our spec passes every check against the
+  # saved copy of CodePen's official spec, that copy is the latest published one, and
+  # specs/upstream/CHANGELOG.md describes it. On failure, run npm run spec:pull and commit, or
+  # release by hand with skip_spec_gate.
   spec-gate:
+    if: ${{ !inputs.skip_spec_gate }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -25,8 +53,41 @@ jobs:
       - run: npm --prefix specs ci
       - run: npm run spec:gate
 
-  release-please:
-    needs: spec-gate
+  # Stands in for the gate when it is skipped by hand, and leaves a record of who skipped it and why.
+  skip-spec-gate:
+    if: ${{ inputs.skip_spec_gate }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record the reason
+        env:
+          REASON: ${{ inputs.reason }}
+          ACTOR: ${{ github.actor }}
+          REF: ${{ github.ref }}
+        run: |
+          if [ "$REF" != "refs/heads/main" ]; then
+            echo "::error::Releases are made from main only, not $REF."
+            exit 1
+          fi
+          if [ -z "$(printf '%s' "$REASON" | tr -d '[:space:]')" ]; then
+            echo "::error::Give a reason to skip the spec gate."
+            exit 1
+          fi
+          echo "::warning::Spec gate skipped by $ACTOR: $REASON"
+          {
+            echo "## Spec gate skipped"
+            echo
+            echo "By @$ACTOR. Reason:"
+            echo
+            printf '> %s\n' "$REASON"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # Tags and creates the GitHub release once a release pull request is merged, then hands over to
+  # publish. Runs after the gate passes, or after it is skipped with a reason.
+  release:
+    needs: [release-pr, spec-gate, skip-spec-gate]
+    if: >-
+      ${{ !cancelled() && needs.release-pr.result == 'success' &&
+      (needs.spec-gate.result == 'success' || needs.skip-spec-gate.result == 'success') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -39,10 +100,11 @@ jobs:
         id: release
         with:
           release-type: node
+          skip-github-pull-request: true
 
   publish:
-    needs: release-please
-    if: needs.release-please.outputs.release_created == 'true'
+    needs: release
+    if: ${{ !cancelled() && needs.release.outputs.release_created == 'true' }}
     runs-on: ubuntu-latest
     environment: npm
     permissions:
@@ -51,7 +113,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.release-please.outputs.tag_name }}
+          ref: ${{ needs.release.outputs.tag_name }}
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
@@ -65,5 +127,7 @@ jobs:
       - run: npm ci
       - run: npm --prefix specs ci
       # prepublishOnly runs clean, check, the spec gate and build before anything is uploaded, so the
-      # gate runs again against the tagged commit.
+      # gate runs again against the tagged commit, unless SKIP_SPEC_GATE carries a reason.
       - run: npm publish --provenance --access public
+        env:
+          SKIP_SPEC_GATE: ${{ inputs.skip_spec_gate && inputs.reason || '' }}
