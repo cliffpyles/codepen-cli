@@ -204,7 +204,16 @@ Review the changelog and the diff of the built spec. If `generate` fails, an ove
 - **Changes are communicated.** The newest entry of `specs/upstream/CHANGELOG.md` describes the saved copies.
 - **Our copy is the latest.** CodePen's published YAML and JSON say the same as `specs/upstream/`. This step needs the network.
 
-It runs in two places, so neither a release nor a publish can skip it. In `.github/workflows/release.yml`, the `spec-gate` job runs before release-please, so no release is cut and nothing is tagged while it fails. And `prepublishOnly` runs it again before `npm publish`, against the tagged commit, which also covers a publish from your own machine.
+It runs in two places, so neither a release nor a publish can slip past it. In `.github/workflows/release.yml`, the `release` job, which tags and creates the GitHub release, waits for the `spec-gate` job, so nothing is tagged while it fails. And `prepublishOnly` runs it again before `npm publish`, against the tagged commit, which also covers a publish from your own machine. Keeping the release pull request up to date is never gated.
+
+#### Skipping the gate
+
+Some releases cannot wait for the spec, such as a security fix while CodePen's spec has changed or `api.codepen.io` is down. Skipping always takes a reason, and it is recorded:
+
+- **In CI.** Merge the release pull request as usual; the gate fails and nothing is tagged. Then run the Release workflow by hand (Actions → Release → Run workflow, on `main`) with **Skip the spec gate** ticked and a reason. It tags, creates the GitHub release and publishes, and the run's summary records who skipped the gate and why. Anyone with write access can do this.
+- **From your machine.** `SKIP_SPEC_GATE="<reason>" npm publish` skips the gate in `prepublishOnly` and prints the reason. The rest of `prepublishOnly` (clean, check, build) still runs.
+
+Bring the spec up to date in a later release, so the next one passes the gate again.
 
 When CodePen changes its spec, releases stop until someone brings the change in: `npm run spec:pull`, `npm --prefix specs run generate`, review, commit. CI never pulls or commits for you. The [contract tests](#contract-tests) are not part of the gate, because they need an API key; run them by hand when you pull.
 
@@ -243,10 +252,10 @@ Changes that touch only `specs/` are `docs(spec)`. The spec is not published, so
 Releases are automated from Conventional Commits.
 
 1. Merge work into `main`. [release-please](https://github.com/googleapis/release-please) keeps a "chore(main): release x.y.z" pull request open that bumps `package.json` and `package-lock.json` and updates `CHANGELOG.md` from the commit history. `feat` bumps the minor version, `fix` the patch, and a `!` or `BREAKING CHANGE:` footer the major.
-2. Merge that pull request. release-please tags the commit (`vX.Y.Z`) and creates a GitHub release.
+2. Merge that pull request. Once the [spec gate](#release-gate) passes, release-please tags the merge (`vX.Y.Z`) and creates a GitHub release.
 3. The `publish` job in `.github/workflows/release.yml` checks out the tag and runs `npm publish --provenance`. `prepublishOnly` cleans, runs the full check, runs the [spec gate](#release-gate) and builds first, so a red check blocks the publish.
 
-Every push to `main` runs the `spec-gate` job before release-please, so a release pull request is only opened or updated, and merging it only cuts a release, while the spec gate passes.
+Only merging the release pull request releases anything. Every push to `main`, whether you push directly or merge a pull request, runs the Release workflow: its `release-pr` job opens or updates the release pull request, and its `release` job tags and publishes only when the push is that pull request's merge. Tagging and publishing wait for the [spec gate](#release-gate); updating the release pull request does not.
 
 The CLI reads its version from `package.json` at runtime (`src/version.ts`), so there is nothing else to bump by hand.
 
